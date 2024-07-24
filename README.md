@@ -8,12 +8,14 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
 
 - [Features](#features)
 - [Requirements](#requirements)
+- [Using Docker](#using-docker)
 - [Installation](#installation)
 - [Usage](#usage)
 - [API Endpoints](#api-endpoints)
   - [Root Endpoint](#root-endpoint)
   - [Upload PDF](#upload-pdf)
   - [Ask Question](#ask-question)
+- [Postman Collection](#postman-collection)
 - [Project Structure](#project-structure)
 - [License](#license)
 
@@ -31,6 +33,10 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
 - Uvicorn
 - PyPDF2
 - Langchain libraries
+
+## Using Docker
+
+You can also run the project using Docker. Refer to the [Docker documentation](README.Docker.md) for more information.
 
 ## Installation
 
@@ -63,6 +69,8 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
    pip install -r requirements.txt
    ```
 
+4. Rename the `.env.example` file to `.env` and update the environment variables.
+
 ## Usage
 
 1. Start the FastAPI server:
@@ -78,6 +86,7 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
 ### Root Endpoint
 
 - **GET /**
+
   - Description: Root endpoint to test the API.
   - Response:
 
@@ -93,10 +102,12 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
 ### Upload PDF
 
 - **POST /upload_pdf**
+
   - Description: Upload a PDF file and process it into chunks for the vector store.
   - Request:
     - File: A PDF file.
   - Response:
+
     - Success:
 
       ```json
@@ -122,8 +133,10 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
 ### Ask Question
 
 - **POST /ask_question**
+
   - Description: Ask a question based on the uploaded documents.
   - Request:
+
     - JSON body:
 
       ```json
@@ -133,6 +146,7 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
       ```
 
   - Response:
+
     - Success:
 
       ```json
@@ -155,15 +169,35 @@ A RAG(Retrieval-Augmented Generation) model is a transformer-based model that co
       }
       ```
 
+## Postman Collection
+
+You can import the Postman collection to test the API endpoints. The collection is available [here](RAG%20System.postman_collection.json).
+
 ## Project Structure
 
 ```readme
 .
+├── pdf/                # Directory to store uploaded PDF files
 ├── main.py             # Main FastAPI application
+├── routes/             # Directory containing API route definitions
+│   ├── __init__.py
+│   ├── ai.py           # Route for AI operations
+│   ├── base.py         # Base route for the API
+│   ├── chat.py         # Route for chat operations using pdf
+├── services/           # Directory containing service classes
+│   ├── __init__.py
+│   ├── ai_service.py   # Service class for AI operations
+│   ├── pdf_service.py  # Service class for PDF operations
 ├── utils.py            # Utility functions for the application
 ├── requirements.txt    # Project dependencies
-├── README.md           # Project documentation
-└── pdf/                # Directory to store uploaded PDF files
+├── .env.example        # Example environment variables
+├── .env                # Environment variables
+├── Dockerfile          # Dockerfile for building the project
+├── docker-compose.yml  # Docker Compose configuration
+├── .gitignore          # Files and directories to be ignored by Git
+├── .dockerignore       # Files and directories to be ignored by Docker
+├── README.Docker.md    # Documentation for running the project in Docker
+└── README.md           # Project documentation
 ```
 
 ## License

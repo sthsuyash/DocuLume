@@ -1,0 +1,332 @@
+{
+	"info": {
+		"_postman_id": "27faac5e-af75-4346-9e84-179d87cc4873",
+		"name": "RAG System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "20437995"
+	},
+	"item": [
+		{
+			"name": "PDF",
+			"item": [
+				{
+					"name": "Upload PDF",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/sthas/Downloads/monopoly.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/pdf/upload_pdf",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pdf",
+								"upload_pdf"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Upload pdf",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": "/C:/Users/sthas/Downloads/monopoly.pdf"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/pdf/upload_pdf",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"pdf",
+										"upload_pdf"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "date",
+									"value": "Wed, 24 Jul 2024 16:00:56 GMT"
+								},
+								{
+									"key": "server",
+									"value": "uvicorn"
+								},
+								{
+									"key": "content-length",
+									"value": "69"
+								},
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"status\": \"success\",\n    \"data\": {\n        \"message\": \"File uploaded successfully.\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Ask AI about uploaded PDF",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n//   \"question\": \"What are the main topics covered in the PDF?\"\r\n  \"question\": \"What is the document about?\"\r\n\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/pdf/ask_question",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pdf",
+								"ask_question"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Ask AI about pdf",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n//   \"question\": \"What are the main topics covered in the PDF?\"\r\n  \"question\": \"What is the document about?\"\r\n\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/pdf/ask_question",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"pdf",
+										"ask_question"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "date",
+									"value": "Wed, 24 Jul 2024 16:02:25 GMT"
+								},
+								{
+									"key": "server",
+									"value": "uvicorn"
+								},
+								{
+									"key": "content-length",
+									"value": "150"
+								},
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"status\": \"success\",\n    \"data\": {\n        \"answer\": \"The document is about the rules and instructions for playing a board game called Monopoly. Thanks for asking!\"\n    }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "LLM",
+			"item": [
+				{
+					"name": "Chat with LLM",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"question\": \"What is machine learning?\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/ai/ask",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ai",
+								"ask"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Ask LLM",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"question\": \"What is machine learning?\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/ask",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"ai",
+										"ask"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "date",
+									"value": "Wed, 24 Jul 2024 16:05:55 GMT"
+								},
+								{
+									"key": "server",
+									"value": "uvicorn"
+								},
+								{
+									"key": "content-length",
+									"value": "436"
+								},
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"status\": \"success\",\n    \"data\": {\n        \"answer\": \"Machine learning is a subset of artificial intelligence that involves the development of algorithms and statistical models that enable computers to improve their performance on a specific task through experience, without being explicitly programmed. Essentially, machine learning allows computers to learn from data and make predictions or decisions without being explicitly programmed to do so.\"\n    }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Home",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}",
+					"host": [
+						"{{base_url}}"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "Home api v1",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}",
+							"host": [
+								"{{base_url}}"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "date",
+							"value": "Wed, 24 Jul 2024 15:59:33 GMT"
+						},
+						{
+							"key": "server",
+							"value": "uvicorn"
+						},
+						{
+							"key": "content-length",
+							"value": "87"
+						},
+						{
+							"key": "content-type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"status\": \"success\",\n    \"data\": {\n        \"message\": \"Welcome to the Question Answering RAG system!\"\n    }\n}"
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api/v1"
+		}
+	]
+}

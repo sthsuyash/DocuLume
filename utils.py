@@ -1,12 +1,4 @@
 from fastapi.responses import JSONResponse
-from dotenv import load_dotenv
-import os
-
-
-def get_api_key() -> str:
-    load_dotenv()
-    return os.getenv('OPENAI_API_KEY')
-
 
 def format_docs(docs):
     """
