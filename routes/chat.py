@@ -19,7 +19,10 @@ async def upload_pdf(file: UploadFile = File(...)) -> JSONResponse:
     """
     try:
         message = process_pdf(file)
-        return create_response(message, 200)
+        return create_response({
+            "message": message,
+            "filename": file.filename
+        }, 200)
     except HTTPException as e:
         return create_response(e.detail, e.status_code)
 

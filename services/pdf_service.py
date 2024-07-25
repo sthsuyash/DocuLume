@@ -43,6 +43,7 @@ def process_pdf(file: UploadFile):
 
         vectorstore = Chroma.from_documents(
             documents=splits, embedding=embeddings)
+
         return "File uploaded successfully."
     except Exception as e:
         raise HTTPException(
