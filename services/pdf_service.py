@@ -5,12 +5,12 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
-from utils import format_docs
+from utils import add_to_chroma
 
 embeddings = OpenAIEmbeddings()
-vectorstore = None
+
+CHROMA_PATH = "chroma"
+DATA_PATH = "pdf"
 
 
 def process_pdf(file: UploadFile):
@@ -23,31 +23,45 @@ def process_pdf(file: UploadFile):
     Returns:
         str: Success message.
     """
-    global vectorstore
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB file size limit
+
     if not file.filename.endswith(".pdf"):
         raise HTTPException(
-            status_code=400, detail="Only PDF files are allowed.")
+            status_code=400, detail="Only PDF files are allowed."
+        )
+
+    # Read the file contents to check size
+    file_content = file.file.read()
+
+    if len(file_content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400, detail="File size exceeds the 10 MB limit."
+        )
 
     file_path = os.path.join("pdf", file.filename)
 
     try:
         with open(file_path, "wb") as f:
-            f.write(file.file.read())
+            f.write(file_content)
 
         reader = PyPDFLoader(file_path)
         docs = reader.load()
 
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200)
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len,
+            is_separator_regex=False,
+        )
         splits = text_splitter.split_documents(docs)
 
-        vectorstore = Chroma.from_documents(
-            documents=splits, embedding=embeddings)
+        add_to_chroma(splits, Chroma, embeddings, CHROMA_PATH)
 
         return "File uploaded successfully."
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Error processing file: {str(e)}")
+            status_code=500, detail=f"Error processing file: {str(e)}"
+        )
 
 
 def ask_question_with_pdf(question: str) -> str:
@@ -60,16 +74,26 @@ def ask_question_with_pdf(question: str) -> str:
     Returns:
         str: The answer to the question.
     """
-    global vectorstore
+    db = Chroma(
+        persist_directory=CHROMA_PATH,
+        embedding_function=embeddings
+    )
+
+    # Search the db
+    results = db.similarity_search_with_score(question, k=5)
+
     if not question:
         raise HTTPException(
             status_code=400, detail="Question field is required.")
 
-    if not vectorstore:
+    if not db:
         raise HTTPException(
             status_code=400, detail="No documents uploaded yet.")
 
-    retriever = vectorstore.as_retriever()
+    context_text = "\n\n---\n\n".join(
+        [doc.page_content for doc, _score in results]
+    )
+
     template = """Use the following pieces of context to answer the question at the end.
     If you don't know the answer, just say that you don't know, don't try to make up an answer.
     Use three sentences maximum and keep the answer as concise as possible.
@@ -80,15 +104,21 @@ def ask_question_with_pdf(question: str) -> str:
     Question: {question}
 
     Helpful Answer:"""
-    prompt = ChatPromptTemplate.from_template(template)
-    llm = ChatOpenAI()
-    output_parser = StrOutputParser()
+    prompt_template = ChatPromptTemplate.from_template(template)
+    prompt = prompt_template.format(context=context_text, question=question)
 
-    rag_chain = (
-        {"context": retriever | format_docs, "question": RunnablePassthrough()}
-        | prompt
-        | llm
-        | output_parser
+    llm = ChatOpenAI(
+        model="gpt-3.5-turbo",
     )
 
-    return rag_chain.invoke(question)
+    response_message = llm.invoke(prompt)
+
+    response_text = response_message.content
+
+    sources = [doc.metadata.get("id", None) for doc, _score in results]
+    formatted_response = {
+        "response": response_text,
+        "sources": sources
+    }
+
+    return formatted_response
