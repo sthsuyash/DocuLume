@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: doculume
+  labels:
+    name: doculume
+    environment: production
