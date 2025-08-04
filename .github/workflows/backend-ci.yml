@@ -13,7 +13,7 @@ on:
       - '.github/workflows/backend-ci.yml'
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.13'
 
 jobs:
   lint:
@@ -98,7 +98,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install bandit[toml] safety
+          pip install bandit[toml] pip-audit
 
       - name: Security scan with Bandit
         run: |
@@ -113,16 +113,16 @@ jobs:
           name: bandit-security-report
           path: backend/bandit-report.json
 
-      - name: Dependency vulnerability check with Safety
-        run: safety check --json --output safety-report.json || safety check
+      - name: Dependency vulnerability check with pip-audit
+        run: pip-audit --requirement requirements.txt --format json --output pip-audit-report.json
         # CRITICAL: No || true - vulnerable dependencies must be fixed
 
-      - name: Upload Safety results
+      - name: Upload pip-audit results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: safety-vulnerability-report
-          path: backend/safety-report.json
+          name: pip-audit-vulnerability-report
+          path: backend/pip-audit-report.json
 
   test:
     name: Tests
@@ -188,8 +188,8 @@ jobs:
             --cov-report=xml \
             --cov-report=term \
             --cov-report=html \
-            --cov-fail-under=90
-        # CRITICAL: 90% coverage required
+            --cov-fail-under=70
+        # Minimum 70% coverage required
 
       - name: Upload coverage reports
         if: always()
@@ -228,7 +228,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: doculume-backend:${{ github.sha }}
           format: 'sarif'

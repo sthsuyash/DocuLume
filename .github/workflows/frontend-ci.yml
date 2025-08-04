@@ -2,50 +2,131 @@ name: Frontend CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'frontend/**'
+      - 'admin-frontend/**'
+      - 'landing/**'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'frontend/**'
+      - 'admin-frontend/**'
+      - 'landing/**'
 
 jobs:
-  test:
+  frontend:
+    name: Frontend
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'pnpm'
-        cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
-    - name: Install pnpm
-      run: npm install -g pnpm
+      - name: Install pnpm
+        run: npm install -g pnpm
 
-    - name: Install dependencies
-      working-directory: ./frontend
-      run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: pnpm install --frozen-lockfile
 
-    - name: Lint
-      working-directory: ./frontend
-      run: pnpm run lint
+      - name: Lint
+        working-directory: ./frontend
+        run: pnpm run lint
 
-    - name: Type check
-      working-directory: ./frontend
-      run: pnpm run type-check
+      - name: Type check
+        working-directory: ./frontend
+        run: pnpm run type-check
 
-    - name: Build
-      working-directory: ./frontend
-      run: pnpm run build
-      env:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      - name: Build
+        working-directory: ./frontend
+        run: pnpm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
 
-    - name: Security audit
-      working-directory: ./frontend
-      run: pnpm audit --audit-level=high || true
+      - name: Security audit
+        working-directory: ./frontend
+        run: pnpm audit --audit-level=high
+
+  admin-frontend:
+    name: Admin Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: admin-frontend/pnpm-lock.yaml
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: ./admin-frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: ./admin-frontend
+        run: pnpm run lint
+
+      - name: Type check
+        working-directory: ./admin-frontend
+        run: pnpm run type-check
+
+      - name: Build
+        working-directory: ./admin-frontend
+        run: pnpm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+
+      - name: Security audit
+        working-directory: ./admin-frontend
+        run: pnpm audit --audit-level=high
+
+  landing:
+    name: Landing
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: landing/pnpm-lock.yaml
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: ./landing
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: ./landing
+        run: pnpm run lint
+
+      - name: Type check
+        working-directory: ./landing
+        run: pnpm run type-check
+
+      - name: Build
+        working-directory: ./landing
+        run: pnpm run build
+
+      - name: Security audit
+        working-directory: ./landing
+        run: pnpm audit --audit-level=high
