@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="allow"
+        extra="ignore"
     )
 
     # Application
@@ -28,11 +28,13 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://raguser:ragpass@localhost:5432/ragdb"
     db_echo: bool = False
-    db_pool_size: int = 5
+    db_pool_size: int = 20
     db_max_overflow: int = 10
+    db_pool_recycle: int = 3600  # recycle connections after 1 hour
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
+    redis_password: Optional[str] = None
     redis_cache_ttl: int = 3600  # 1 hour
 
     # Authentication
@@ -67,8 +69,10 @@ class Settings(BaseSettings):
     chunk_size: int = 1000
     chunk_overlap: int = 200
 
-    # Vector Database
-    chroma_persist_directory: str = "./chroma_data"
+    # Vector Database (Elasticsearch)
+    elasticsearch_url: str = "http://localhost:9200"
+    elasticsearch_user: Optional[str] = None
+    elasticsearch_password: Optional[str] = None
     embedding_model: str = "text-embedding-ada-002"
     retrieval_top_k: int = 5
 
@@ -89,27 +93,45 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"  # or "text"
 
+    # Error tracking
+    sentry_dsn: Optional[str] = None
+
+    # Email (SMTP) for verification emails
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_use_tls: bool = True
+    email_from: str = "noreply@doculume.ai"
+    frontend_url: str = "http://localhost:3000"
+
     @property
     def database_url_sync(self) -> str:
         """Get synchronous database URL for Alembic."""
         return self.database_url.replace("+asyncpg", "")
 
     def validate_production_config(self) -> None:
-        """Validate critical configuration for production environment.
-
-        Raises:
-            ValueError: If required production configuration is missing
-        """
-        if self.environment == "production":
-            if not self.encryption_key:
-                raise ValueError(
-                    "ENCRYPTION_KEY must be set in production environment. "
-                    "Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
-                )
-            if self.jwt_secret_key == "your-secret-key-change-in-production":
-                raise ValueError("JWT_SECRET_KEY must be changed in production")
-            if not self.database_url or "localhost" in self.database_url:
-                raise ValueError("DATABASE_URL must be configured for production (not localhost)")
+        """Validate critical configuration for production environment."""
+        if self.environment != "production":
+            return
+        errors = []
+        if not self.encryption_key:
+            errors.append(
+                "ENCRYPTION_KEY is required. "
+                "Generate: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
+        if self.jwt_secret_key == "your-secret-key-change-in-production":
+            errors.append("JWT_SECRET_KEY must be changed from the default value")
+        if not self.database_url or "localhost" in self.database_url:
+            errors.append("DATABASE_URL must point to a non-localhost host in production")
+        if not self.redis_password:
+            errors.append("REDIS_PASSWORD must be set in production")
+        if self.debug:
+            errors.append("DEBUG must be false in production")
+        if not self.cors_origins or self.cors_origins == ["http://localhost:3000", "http://localhost:8000"]:
+            errors.append("CORS_ORIGINS must be set to your production domain(s)")
+        if errors:
+            raise ValueError("Production config errors:\n" + "\n".join(f"  - {e}" for e in errors))
 
 
 @lru_cache()

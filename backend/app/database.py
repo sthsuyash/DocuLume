@@ -13,6 +13,8 @@ engine = create_async_engine(
     echo=settings.db_echo,
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
+    pool_recycle=settings.db_pool_recycle,
+    pool_pre_ping=True,
     future=True,
 )
 
@@ -37,10 +39,21 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 redis_client: Redis = None
 
+def _build_redis_url() -> str:
+    url = settings.redis_url
+    if settings.redis_password and "://" in url and ":@" not in url and "@" not in url.split("://")[1]:
+        scheme, rest = url.split("://", 1)
+        url = f"{scheme}://:{settings.redis_password}@{rest}"
+    return url
+
 async def get_redis() -> Redis:
     global redis_client
     if redis_client is None:
-        redis_client = Redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+        redis_client = Redis.from_url(
+            _build_redis_url(),
+            encoding="utf-8",
+            decode_responses=True,
+        )
     return redis_client
 
 async def init_db() -> None:

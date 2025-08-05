@@ -10,16 +10,20 @@ from app.api.v1 import api_router
 from app.middleware import handle_errors
 from app.utils.logger import logger
 from app.utils.cache import cache_manager
+from app.utils.sentry import init_sentry
 
 # Import tracing if enabled
 if settings.otel_enabled:
     from app.middleware.tracing import setup_tracing
+
+init_sentry()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     logger.info("Starting application...")
+    settings.validate_production_config()
     await init_db()
     logger.info("Database initialized")
     await cache_manager.connect()
@@ -74,6 +78,10 @@ app.add_middleware(RequestLoggingMiddleware)
 # Metrics middleware
 from app.middleware.metrics import MetricsMiddleware
 app.add_middleware(MetricsMiddleware)
+
+# Request size limit middleware
+from app.middleware.request_size import RequestSizeLimitMiddleware
+app.add_middleware(RequestSizeLimitMiddleware)
 
 # Store settings in app state
 app.state.settings = settings
