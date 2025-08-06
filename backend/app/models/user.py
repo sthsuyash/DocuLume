@@ -37,6 +37,22 @@ class User(Base):
     # LLM Configuration (flexible provider config)
     llm_config = Column(JSONB, nullable=True, server_default='{}', comment='User LLM provider configuration and settings')
 
+    # User preferences (theme, defaults, notifications, etc.)
+    preferences = Column(JSONB, nullable=True, server_default='{}', comment='User interface and behavior preferences')
+
+    # Webhook URL to POST when a document finishes processing
+    webhook_url = Column(Text, nullable=True)
+
+    # Email verification
+    email_verification_token = Column(String(64), nullable=True, index=True)
+
+    # Password reset
+    password_reset_token = Column(String(64), nullable=True, index=True)
+
+    # Two-factor authentication
+    totp_secret = Column(String(64), nullable=True)
+    totp_enabled = Column(Boolean, default=False, nullable=False)
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -45,6 +61,11 @@ class User(Base):
     # Relationships
     documents = relationship("Document", back_populates="owner", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    collections = relationship("Collection", back_populates="user", cascade="all, delete-orphan")
+    api_tokens = relationship("APIToken", back_populates="user", cascade="all, delete-orphan")
+    templates = relationship("ConversationTemplate", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
 
     # Transparent encryption properties for LLM API keys
     @hybrid_property
