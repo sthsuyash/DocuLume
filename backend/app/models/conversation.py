@@ -1,7 +1,7 @@
 """Conversation model for chat sessions."""
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -16,6 +16,12 @@ class Conversation(Base):
     # LLM Configuration
     llm_provider = Column(String(50), default="openai")  # openai, anthropic, google
     llm_model = Column(String(100), default="gpt-3.5-turbo")
+
+    # Optional system prompt for this conversation
+    system_prompt = Column(Text, nullable=True)
+
+    # Soft archive (hidden from list but not deleted)
+    is_archived = Column(Boolean, default=False, nullable=False, server_default="false")
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
