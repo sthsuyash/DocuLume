@@ -1,6 +1,6 @@
 """User schemas."""
 
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, ConfigDict
 
@@ -31,9 +31,25 @@ class UserResponse(UserBase):
     is_active: bool
     is_verified: bool
     is_admin: bool = False
+    is_superuser: bool = False
     oauth_provider: Optional[str] = None
+    preferences: Optional[Dict[str, Any]] = None
     created_at: datetime
     last_login: Optional[datetime] = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
 
 
 class UserWithKeys(UserResponse):
