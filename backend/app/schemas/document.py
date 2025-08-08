@@ -1,6 +1,6 @@
 """Document schemas."""
 
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from app.models.document import DocumentStatus
@@ -31,6 +31,11 @@ class DocumentResponse(BaseModel):
     status: DocumentStatus
     page_count: Optional[int] = None
     chunk_count: int
+    tags: Optional[List[str]] = None
+    summary: Optional[str] = None
+    chunk_size_override: Optional[int] = None
+    chunk_overlap_override: Optional[int] = None
+    expires_at: Optional[datetime] = None
     created_at: datetime
     processed_at: Optional[datetime] = None
     error_message: Optional[str] = None
