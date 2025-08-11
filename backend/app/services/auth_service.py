@@ -1,5 +1,6 @@
 """Authentication service."""
 
+import secrets
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -40,11 +41,42 @@ class AuthService:
             full_name=user_data.full_name
         )
 
+        token = secrets.token_urlsafe(32)
+        user.email_verification_token = token
+
         db.add(user)
         await db.commit()
         await db.refresh(user)
 
+        try:
+            from app.utils.email import send_verification_email
+            await send_verification_email(user.email, token)
+        except Exception:
+            pass  # Non-fatal — user can resend
+
         return user
+
+    @staticmethod
+    async def verify_email(db: AsyncSession, token: str) -> User:
+        result = await db.execute(select(User).filter(User.email_verification_token == token))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification token")
+        user.is_verified = True
+        user.email_verification_token = None
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+    @staticmethod
+    async def resend_verification(db: AsyncSession, user: User) -> None:
+        if user.is_verified:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already verified")
+        token = secrets.token_urlsafe(32)
+        user.email_verification_token = token
+        await db.commit()
+        from app.utils.email import send_verification_email
+        await send_verification_email(user.email, token)
 
     @staticmethod
     async def login(db: AsyncSession, credentials: UserLogin) -> Token:
@@ -180,6 +212,38 @@ class AuthService:
             access_token=access_token,
             refresh_token=refresh_token
         )
+
+    @staticmethod
+    async def change_password(db: AsyncSession, user: User, current_password: str, new_password: str) -> None:
+        if not user.hashed_password or not verify_password(current_password, user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+        user.hashed_password = get_password_hash(new_password)
+        await db.commit()
+
+    @staticmethod
+    async def request_password_reset(db: AsyncSession, email: str) -> None:
+        result = await db.execute(select(User).filter(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user or not user.hashed_password:
+            return  # Silently succeed to prevent user enumeration
+        token = secrets.token_urlsafe(32)
+        user.password_reset_token = token
+        await db.commit()
+        try:
+            from app.utils.email import send_password_reset_email
+            await send_password_reset_email(user.email, token)
+        except Exception:
+            pass
+
+    @staticmethod
+    async def reset_password(db: AsyncSession, token: str, new_password: str) -> None:
+        result = await db.execute(select(User).filter(User.password_reset_token == token))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+        user.hashed_password = get_password_hash(new_password)
+        user.password_reset_token = None
+        await db.commit()
 
     @staticmethod
     async def refresh_token(db: AsyncSession, user_id: int) -> Token:
