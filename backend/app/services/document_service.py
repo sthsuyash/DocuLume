@@ -4,6 +4,7 @@ import os
 import shutil
 from typing import List, Tuple
 from datetime import datetime
+import filetype
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from fastapi import UploadFile, HTTPException, status
@@ -14,6 +15,15 @@ from app.core.document_processing import load_document, chunk_documents, calcula
 from app.core.rag import VectorStore
 from app.config import settings
 from app.utils.logger import logger
+from app.utils import audit
+
+# Allowed MIME types mapped to their expected extensions
+_ALLOWED_MIME_TYPES: dict[str, list[str]] = {
+    "application/pdf": [".pdf"],
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+    "text/plain": [".txt", ".md"],
+    # filetype detects .md as text/plain — acceptable
+}
 
 
 class DocumentService:
@@ -27,7 +37,7 @@ class DocumentService:
         vector_store: VectorStore
     ) -> Document:
         """Upload and process a document."""
-        # Validate file type
+        # Validate extension
         file_ext = os.path.splitext(file.filename)[1].lower()
         if file_ext not in settings.allowed_file_types:
             raise HTTPException(
@@ -45,6 +55,26 @@ class DocumentService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File size exceeds {settings.max_file_size_mb}MB limit"
             )
+
+        # Validate actual file content via magic bytes
+        header = await file.read(261)
+        file.file.seek(0)
+        detected = filetype.guess(header)
+        if detected is not None:
+            # filetype recognised a binary format — verify it matches the extension
+            allowed_mimes = list(_ALLOWED_MIME_TYPES.keys())
+            if detected.mime not in allowed_mimes:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="File content does not match the expected type"
+                )
+            expected_exts = _ALLOWED_MIME_TYPES.get(detected.mime, [])
+            if expected_exts and file_ext not in expected_exts:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="File extension does not match file content"
+                )
+        # filetype returns None for plain text (.txt, .md) — those pass through
 
         # Create storage directory
         os.makedirs(settings.storage_path, exist_ok=True)
@@ -79,6 +109,8 @@ class DocumentService:
         db.add(document)
         await db.commit()
         await db.refresh(document)
+
+        audit.log_document_upload(user.id, document.id, file.filename, file_size)
 
         # Process document asynchronously with Celery or synchronously
         try:
@@ -257,6 +289,7 @@ class DocumentService:
         await db.delete(document)
         await db.commit()
 
+        audit.log_document_delete(user_id, document_id, document.user_id, document.original_filename)
         logger.info(f"Document {document_id} deleted successfully")
 
     @staticmethod

@@ -1,41 +1,101 @@
-"""Chat service for RAG-based conversations."""
+"""LLM ask / stream service."""
 
-from typing import Tuple, List, Optional, AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from typing import AsyncGenerator, Dict, List, Optional, Tuple
 from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.message import Message, MessageRole
-from app.core.rag import RAGPipeline, VectorStore
+from app.core.rag import VectorStore
 from app.services.llm_router import LLMRouter
+from app.services.conversation_service import ConversationService
 from app.utils.logger import logger
+
+# Rough cost per 1K tokens (prompt / completion) in USD
+_COST_TABLE: Dict[str, Tuple[float, float]] = {
+    "gpt-4":             (0.03,    0.06),
+    "gpt-4-turbo":       (0.01,    0.03),
+    "gpt-3.5-turbo":     (0.0005,  0.0015),
+    "claude-3-opus":     (0.015,   0.075),
+    "claude-3-sonnet":   (0.003,   0.015),
+    "claude-3-haiku":    (0.00025, 0.00125),
+    "gemini-pro":        (0.0005,  0.0015),
+    "gemini-1.5-pro":    (0.0035,  0.0105),
+}
+_DEFAULT_COST = (0.001, 0.002)
+
+
+def _estimate_tokens(text: str) -> int:
+    return max(1, len(text) // 4)
+
+
+def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
+    for key, (p_cost, c_cost) in _COST_TABLE.items():
+        if key in model.lower():
+            return round((prompt_tokens / 1000) * p_cost + (completion_tokens / 1000) * c_cost, 6)
+    p_cost, c_cost = _DEFAULT_COST
+    return round((prompt_tokens / 1000) * p_cost + (completion_tokens / 1000) * c_cost, 6)
+
+
+async def _resolve_conversation(
+    db: AsyncSession, user: User, conversation_id: Optional[int]
+) -> Conversation:
+    if conversation_id:
+        result = await db.execute(
+            select(Conversation).filter(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user.id,
+            )
+        )
+        conv = result.scalar_one_or_none()
+        if not conv:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+        return conv
+    return await ConversationService.create(db, user)
+
+
+def _auto_title(conv: Conversation, question: str) -> None:
+    if conv.title in (None, "New Chat", ""):
+        conv.title = (question[:60] + "…") if len(question) > 60 else question[:60]
+
+
+async def _build_messages(
+    conv: Conversation,
+    user: User,
+    question: str,
+    vector_store: VectorStore,
+    use_rag: bool,
+    use_hybrid: bool,
+    top_k: int,
+    document_ids: Optional[List[int]],
+) -> Tuple[List[Dict[str, str]], List[str], List[Dict]]:
+    messages: List[Dict[str, str]] = []
+    sources: List[str] = []
+    source_details: List[Dict] = []
+
+    if conv.system_prompt:
+        messages.append({"role": "system", "content": conv.system_prompt})
+
+    if use_rag:
+        chunks = (
+            await vector_store.hybrid_search(question, k=top_k, user_id=user.id, document_ids=document_ids)
+            if use_hybrid
+            else await vector_store.similarity_search(question, k=top_k, user_id=user.id, document_ids=document_ids)
+        )
+        context = "\n\n".join(c.get("text", "") for c in chunks)
+        sources = [c.get("source", "") for c in chunks]
+        source_details = chunks
+        enhanced = f"Context:\n{context}\n\nQuestion: {question}" if context else question
+        messages.append({"role": "user", "content": enhanced})
+    else:
+        messages.append({"role": "user", "content": question})
+
+    return messages, sources, source_details
 
 
 class ChatService:
-    """Service for chat operations."""
-
-    @staticmethod
-    async def create_conversation(
-        db: AsyncSession,
-        user: User,
-        title: Optional[str] = None,
-        llm_provider: str = "openai",
-        llm_model: str = "gpt-3.5-turbo"
-    ) -> Conversation:
-        """Create a new conversation."""
-        conversation = Conversation(
-            user_id=user.id,
-            title=title or "New Chat",
-            llm_provider=llm_provider,
-            llm_model=llm_model
-        )
-
-        db.add(conversation)
-        await db.commit()
-        await db.refresh(conversation)
-
-        return conversation
 
     @staticmethod
     async def ask_question(
@@ -45,88 +105,37 @@ class ChatService:
         conversation_id: Optional[int],
         vector_store: VectorStore,
         use_rag: bool = True,
-        top_k: int = 5
-    ) -> Tuple[str, List[str], int, int]:
-        """Process a question and return answer with sources."""
-        # Get or create conversation
-        if conversation_id:
-            result = await db.execute(
-                select(Conversation).filter(
-                    Conversation.id == conversation_id,
-                    Conversation.user_id == user.id
-                )
-            )
-            conversation = result.scalar_one_or_none()
+        use_hybrid: bool = False,
+        top_k: int = 5,
+        document_ids: Optional[List[int]] = None,
+    ) -> Tuple[str, List[str], List[Dict], int, int, Optional[int], Optional[int], Optional[float]]:
+        conv = await _resolve_conversation(db, user, conversation_id)
+        db.add(Message(conversation_id=conv.id, role=MessageRole.USER, content=question))
+        _auto_title(conv, question)
 
-            if not conversation:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Conversation not found"
-                )
-        else:
-            conversation = await ChatService.create_conversation(db, user)
-
-        # Save user message
-        user_message = Message(
-            conversation_id=conversation.id,
-            role=MessageRole.USER,
-            content=question
-        )
-        db.add(user_message)
-
-        # Get LLM provider using LLMRouter (supports all configured providers)
         try:
-            llm_provider_instance = await LLMRouter.get_provider_for_user(
-                user,
-                preferred_provider=conversation.llm_provider if conversation.llm_provider else None
-            )
+            llm = await LLMRouter.get_provider_for_user(user, preferred_provider=conv.llm_provider or None)
         except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"LLM provider error: {str(e)}"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"LLM provider error: {e}")
 
-        # Process question
-        if use_rag:
-            # RAG pipeline - will use the provider instance
-            # Note: RAG pipeline needs to be updated to accept provider instance instead of config
-            # For now, use direct LLM with context
-            messages = [{"role": "user", "content": question}]
+        msgs, sources, source_details = await _build_messages(conv, user, question, vector_store, use_rag, use_hybrid, top_k, document_ids)
+        answer = await llm.chat(messages=msgs)
 
-            # Get context from vector store if RAG enabled
-            if hasattr(vector_store, 'similarity_search'):
-                chunks = await vector_store.similarity_search(question, k=top_k)
-                context = "\n\n".join([chunk.get('text', '') for chunk in chunks])
-                sources = [chunk.get('source', '') for chunk in chunks]
+        prompt_text = " ".join(m["content"] for m in msgs)
+        prompt_tokens = _estimate_tokens(prompt_text)
+        completion_tokens = _estimate_tokens(answer)
+        cost = _estimate_cost(conv.llm_model, prompt_tokens, completion_tokens)
 
-                # Add context to prompt
-                enhanced_question = f"Context:\n{context}\n\nQuestion: {question}"
-                messages = [{"role": "user", "content": enhanced_question}]
-            else:
-                sources = []
-
-            answer = await llm_provider_instance.chat(messages=messages)
-        else:
-            # Direct LLM query
-            messages = [{"role": "user", "content": question}]
-            answer = await llm_provider_instance.chat(messages=messages)
-            sources = []
-
-        # Save assistant message
-        assistant_message = Message(
-            conversation_id=conversation.id,
-            role=MessageRole.ASSISTANT,
-            content=answer,
-            sources=sources if sources else None
+        assistant = Message(
+            conversation_id=conv.id, role=MessageRole.ASSISTANT, content=answer,
+            sources=sources or None,
+            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, estimated_cost_usd=cost,
         )
-        db.add(assistant_message)
-
+        db.add(assistant)
         await db.commit()
-        await db.refresh(assistant_message)
-
-        logger.info(f"Question answered in conversation {conversation.id}")
-
-        return answer, sources, conversation.id, assistant_message.id
+        await db.refresh(assistant)
+        logger.info(f"Question answered in conversation {conv.id}")
+        return answer, sources, source_details, conv.id, assistant.id, prompt_tokens, completion_tokens, cost
 
     @staticmethod
     async def ask_question_stream(
@@ -136,186 +145,48 @@ class ChatService:
         conversation_id: Optional[int],
         vector_store: VectorStore,
         use_rag: bool = True,
-        top_k: int = 5
-    ) -> AsyncGenerator[Tuple[str, Optional[List[str]], int, Optional[int]], None]:
-        """Process a question and stream answer with sources."""
-        # Get or create conversation
-        if conversation_id:
-            result = await db.execute(
-                select(Conversation).filter(
-                    Conversation.id == conversation_id,
-                    Conversation.user_id == user.id
-                )
-            )
-            conversation = result.scalar_one_or_none()
-
-            if not conversation:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Conversation not found"
-                )
-        else:
-            conversation = await ChatService.create_conversation(db, user)
-
-        # Save user message
-        user_message = Message(
-            conversation_id=conversation.id,
-            role=MessageRole.USER,
-            content=question
-        )
-        db.add(user_message)
+        use_hybrid: bool = False,
+        top_k: int = 5,
+        document_ids: Optional[List[int]] = None,
+    ) -> AsyncGenerator[Tuple[str, Optional[List[str]], Optional[List[Dict]], int, Optional[int]], None]:
+        conv = await _resolve_conversation(db, user, conversation_id)
+        db.add(Message(conversation_id=conv.id, role=MessageRole.USER, content=question))
+        _auto_title(conv, question)
         await db.commit()
 
-        # Get LLM provider using LLMRouter
         try:
-            llm_provider_instance = await LLMRouter.get_provider_for_user(
-                user,
-                preferred_provider=conversation.llm_provider if conversation.llm_provider else None
-            )
+            llm = await LLMRouter.get_provider_for_user(user, preferred_provider=conv.llm_provider or None)
         except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"LLM provider error: {str(e)}"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"LLM provider error: {e}")
 
-        # Stream response
-        full_answer = ""
-        sources = []
+        msgs, sources, source_details = await _build_messages(conv, user, question, vector_store, use_rag, use_hybrid, top_k, document_ids)
 
-        # For now, stream is not implemented in UniversalLLMProvider
-        # Use non-streaming approach and yield in chunks
-        messages = [{"role": "user", "content": question}]
+        if use_rag:
+            yield "", sources, source_details, conv.id, None
 
-        if use_rag and hasattr(vector_store, 'similarity_search'):
-            # Get context from vector store
-            chunks = await vector_store.similarity_search(question, k=top_k)
-            context = "\n\n".join([chunk.get('text', '') for chunk in chunks])
-            sources = [chunk.get('source', '') for chunk in chunks]
+        full_answer = await llm.chat(messages=msgs)
+        for i in range(0, len(full_answer), 50):
+            yield full_answer[i:i + 50], None, None, conv.id, None
 
-            # Yield sources first
-            yield "", sources, conversation.id, None
+        prompt_tokens = _estimate_tokens(" ".join(m["content"] for m in msgs))
+        completion_tokens = _estimate_tokens(full_answer)
+        cost = _estimate_cost(conv.llm_model, prompt_tokens, completion_tokens)
 
-            # Add context to prompt
-            enhanced_question = f"Context:\n{context}\n\nQuestion: {question}"
-            messages = [{"role": "user", "content": enhanced_question}]
-
-        # Get full answer (streaming can be added later)
-        full_answer = await llm_provider_instance.chat(messages=messages)
-
-        # Yield answer in chunks for better UX
-        chunk_size = 50
-        for i in range(0, len(full_answer), chunk_size):
-            chunk = full_answer[i:i+chunk_size]
-            yield chunk, None, conversation.id, None
-
-        # Save complete assistant message
-        assistant_message = Message(
-            conversation_id=conversation.id,
-            role=MessageRole.ASSISTANT,
-            content=full_answer,
-            sources=sources if sources else None
+        assistant = Message(
+            conversation_id=conv.id, role=MessageRole.ASSISTANT, content=full_answer,
+            sources=sources or None,
+            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, estimated_cost_usd=cost,
         )
-        db.add(assistant_message)
+        db.add(assistant)
         await db.commit()
-        await db.refresh(assistant_message)
+        await db.refresh(assistant)
+        logger.info(f"Streamed answer in conversation {conv.id}")
+        yield "", None, None, conv.id, assistant.id
 
-        logger.info(f"Streamed question answered in conversation {conversation.id}")
-
-        # Yield final chunk with message ID
-        yield "", None, conversation.id, assistant_message.id
-
-    @staticmethod
-    async def get_user_conversations(
-        db: AsyncSession,
-        user_id: int,
-        page: int = 1,
-        page_size: int = 20
-    ) -> Tuple[List[Conversation], int]:
-        """Get paginated conversations for a user.
-
-        Args:
-            db: Database session
-            user_id: User ID to filter conversations
-            page: Page number (1-indexed)
-            page_size: Number of items per page
-
-        Returns:
-            Tuple of (conversations list, total count)
-        """
-        # Count total conversations
-        count_query = select(func.count(Conversation.id)).filter(
-            Conversation.user_id == user_id
-        )
-        total_result = await db.execute(count_query)
-        total = total_result.scalar() or 0
-
-        # Get paginated conversations
-        offset = (page - 1) * page_size
-        query = (
-            select(Conversation)
-            .filter(Conversation.user_id == user_id)
-            .order_by(Conversation.updated_at.desc())
-            .offset(offset)
-            .limit(page_size)
-        )
-        result = await db.execute(query)
-        conversations = list(result.scalars().all())
-
-        return conversations, total
-
-    @staticmethod
-    async def get_conversation_messages(
-        db: AsyncSession,
-        conversation_id: int,
-        user_id: int
-    ) -> List[Message]:
-        """Get all messages in a conversation."""
-        # Verify ownership
-        result = await db.execute(
-            select(Conversation).filter(
-                Conversation.id == conversation_id,
-                Conversation.user_id == user_id
-            )
-        )
-        conversation = result.scalar_one_or_none()
-
-        if not conversation:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
-            )
-
-        # Get messages
-        message_result = await db.execute(
-            select(Message)
-            .filter(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at)
-        )
-        return list(message_result.scalars().all())
-
-    @staticmethod
-    async def get_conversation_with_messages(
-        db: AsyncSession,
-        conversation_id: int,
-        user_id: int
-    ) -> Tuple[Conversation, List[Message]]:
-        """Get conversation with all its messages."""
-        # Verify ownership
-        result = await db.execute(
-            select(Conversation).filter(
-                Conversation.id == conversation_id,
-                Conversation.user_id == user_id
-            )
-        )
-        conversation = result.scalar_one_or_none()
-
-        if not conversation:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
-            )
-
-        # Get messages
-        messages = await ChatService.get_conversation_messages(db, conversation_id, user_id)
-
-        return conversation, messages
+    # Retained for backward-compat with callers that still use ChatService.*
+    get_user_conversations = staticmethod(lambda db, uid, page=1, ps=20: ConversationService.list_active(db, uid, page, ps))
+    get_archived_conversations = staticmethod(lambda db, uid, page=1, ps=20: ConversationService.list_archived(db, uid, page, ps))
+    search_conversations = staticmethod(lambda db, uid, q, page=1, ps=20: ConversationService.search(db, uid, q, page, ps))
+    update_conversation = staticmethod(lambda db, cid, uid, **f: ConversationService.update(db, cid, uid, **f))
+    get_conversation_messages = staticmethod(lambda db, cid, uid: ConversationService.get_messages(db, cid, uid))
+    get_conversation_with_messages = staticmethod(lambda db, cid, uid: ConversationService.get_with_messages(db, cid, uid))
