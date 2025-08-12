@@ -84,7 +84,7 @@ async def readiness_check(
         return {"status": "ready"}
     except Exception as e:
         logger.error(f"Readiness check failed: {str(e)}")
-        return {"status": "not_ready", "error": str(e)}
+        return {"status": "not_ready"}
 
 
 @router.get("/health/live")

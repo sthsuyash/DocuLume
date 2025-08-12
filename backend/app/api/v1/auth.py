@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.auth import UserRegister, UserLogin, Token, RefreshToken
-from app.schemas.user import UserResponse
+from app.schemas.user import UserResponse, PasswordChange, PasswordResetRequest, PasswordReset
 from app.services import AuthService
 from app.middleware import get_current_user
 from app.models.user import User
@@ -12,6 +12,7 @@ from app.core.auth.oauth import get_oauth_provider
 from app.utils.security import verify_token
 from app.utils.csrf import create_csrf_token_with_signature
 from app.config import settings
+from app.utils import audit
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -83,11 +84,15 @@ def clear_auth_cookies(response: Response) -> None:
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 async def register(
+    request: Request,
     user_data: UserRegister,
     db: AsyncSession = Depends(get_db)
 ):
     """Register a new user."""
     user = await AuthService.register(db, user_data)
+    ip = request.client.host if request.client else "unknown"
+    audit.log_register(user.id, user.email, ip)
+    await audit.emit_db(db, "auth.register", user.id, user.email, ip)
     return user
 
 
@@ -98,7 +103,12 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     """Login and set authentication cookies."""
-    token = await AuthService.login(db, credentials)
+    ip = response.headers.get("X-Forwarded-For", None) or (request.client.host if request.client else "unknown")
+    try:
+        token = await AuthService.login(db, credentials)
+    except Exception:
+        audit.log_login_failure(credentials.email, ip, "invalid_credentials")
+        raise
 
     # Get user ID from token to generate CSRF token
     payload = verify_token(token.access_token, token_type="access")
@@ -116,7 +126,8 @@ async def login(
         csrf_signature
     )
 
-    # Return success message (tokens are in cookies)
+    audit.log_login_success(user_id, credentials.email, ip)
+    await audit.emit_db(db, "auth.login.success", user_id, credentials.email, ip)
     return {
         "message": "Login successful",
         "user_id": user_id
@@ -229,20 +240,73 @@ async def oauth_callback(
         csrf_signature
     )
 
-    # Return success message
+    ip = request.client.host if request.client else "unknown"
+    audit.log_oauth_login(user_id, provider, ip)
     return {
         "message": "OAuth login successful",
         "user_id": user_id
     }
 
 
+@router.get("/verify-email")
+async def verify_email(
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify email address via token sent in registration email."""
+    await AuthService.verify_email(db, token)
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Resend email verification link to the current user."""
+    await AuthService.resend_verification(db, current_user)
+    return {"message": "Verification email sent"}
+
+
+@router.post("/change-password", status_code=204)
+async def change_password(
+    data: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change password for the currently authenticated user."""
+    await AuthService.change_password(db, current_user, data.current_password, data.new_password)
+
+
+@router.post("/forgot-password", status_code=202)
+async def forgot_password(
+    data: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a password-reset email. Always returns 202 to prevent user enumeration."""
+    await AuthService.request_password_reset(db, data.email)
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=204)
+async def reset_password(
+    data: PasswordReset,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset password using a token from the reset email."""
+    await AuthService.reset_password(db, data.token, data.new_password)
+
+
 @router.post("/logout")
 async def logout(
+    request: Request,
     response: Response,
     current_user: User = Depends(get_current_user)
 ):
     """Logout and clear authentication cookies."""
     clear_auth_cookies(response)
+    ip = request.client.host if request.client else "unknown"
+    audit.log_logout(current_user.id, ip)
     return {"message": "Logout successful"}
 
 
