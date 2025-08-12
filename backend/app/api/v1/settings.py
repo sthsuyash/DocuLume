@@ -292,6 +292,73 @@ async def test_llm_connection(
     return result
 
 
+@router.get("/preferences")
+async def get_preferences(
+    current_user: User = Depends(get_current_user),
+):
+    """Get current user's preference settings."""
+    defaults = {
+        "theme": "system",
+        "language": "en",
+        "use_streaming": True,
+        "use_hybrid_search": False,
+        "use_rag_by_default": False,
+        "results_per_page": 20,
+        "notifications_document_ready": True,
+        "notifications_email": True,
+    }
+    prefs = {**defaults, **(current_user.preferences or {})}
+    return prefs
+
+
+class PreferencesUpdate(BaseModel):
+    theme: Optional[str] = Field(None, pattern="^(light|dark|system)$")
+    language: Optional[str] = Field(None, max_length=10)
+    use_streaming: Optional[bool] = None
+    use_hybrid_search: Optional[bool] = None
+    use_rag_by_default: Optional[bool] = None
+    results_per_page: Optional[int] = Field(None, ge=5, le=100)
+    notifications_document_ready: Optional[bool] = None
+    notifications_email: Optional[bool] = None
+
+
+@router.patch("/preferences")
+async def update_preferences(
+    body: PreferencesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update one or more user preference settings (partial update)."""
+    prefs = dict(current_user.preferences or {})
+    updates = body.model_dump(exclude_none=True)
+    prefs.update(updates)
+    current_user.preferences = prefs
+    await db.commit()
+    return prefs
+
+
+class WebhookUpdate(BaseModel):
+    webhook_url: Optional[str] = Field(None, max_length=2048)
+
+
+@router.get("/webhook")
+async def get_webhook(current_user: User = Depends(get_current_user)):
+    """Get the current webhook URL."""
+    return {"webhook_url": current_user.webhook_url}
+
+
+@router.patch("/webhook")
+async def update_webhook(
+    body: WebhookUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set or clear the webhook URL called when a document finishes processing."""
+    current_user.webhook_url = body.webhook_url or None
+    await db.commit()
+    return {"webhook_url": current_user.webhook_url}
+
+
 @router.get("/llm/defaults")
 async def get_default_configs():
     """
