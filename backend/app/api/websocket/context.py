@@ -10,12 +10,13 @@ import json
 import asyncio
 import logging
 
-from app.database import get_db
+from app.database import get_db, get_redis
 from app.models.user import User
 from app.models.conversation import Conversation
 from app.core.context import get_context_manager, ContextUsage
 from sqlalchemy import select
 from app.middleware.auth import get_current_user_ws
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -160,6 +161,16 @@ class ConnectionManager:
 
         await self.broadcast_to_conversation(conversation_id, message)
 
+    async def broadcast_to_user(self, user_id: int, message: dict):
+        """Broadcast a message to all conversations belonging to a user."""
+        for conv_id, connections in list(self.active_connections.items()):
+            for ws in list(connections):
+                if self.connection_users.get(ws) == user_id:
+                    try:
+                        await ws.send_json(message)
+                    except Exception:
+                        pass
+
     async def send_summarization_complete(
         self,
         conversation_id: int,
@@ -184,6 +195,23 @@ class ConnectionManager:
 
 # Global connection manager instance
 manager = ConnectionManager()
+
+
+async def _check_ws_rate_limit(user_id: int) -> bool:
+    """Return False if the user has exceeded the WebSocket connection rate limit."""
+    try:
+        redis = await get_redis()
+        key = f"rate_limit:ws:{user_id}"
+        current = await redis.get(key)
+        if current is None:
+            await redis.setex(key, 60, 1)
+        elif int(current) >= settings.rate_limit_per_minute:
+            return False
+        else:
+            await redis.incr(key)
+    except Exception as e:
+        logger.error(f"WebSocket rate limit check failed: {e}")
+    return True
 
 
 async def get_conversation_or_404(
@@ -250,6 +278,11 @@ async def websocket_context_endpoint(
             user = await get_current_user_ws(token, db)
         except HTTPException:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+            return
+
+        # Rate limit WebSocket connections per user
+        if not await _check_ws_rate_limit(user.id):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Rate limit exceeded")
             return
 
         # Verify user owns conversation
