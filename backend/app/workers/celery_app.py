@@ -22,4 +22,14 @@ celery_app.conf.update(
     task_soft_time_limit=25 * 60,  # 25 minutes
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
+    beat_schedule={
+        "cleanup-old-documents-daily": {
+            "task": "cleanup_old_documents",
+            "schedule": 86400,  # once per day
+        },
+        "expire-documents-hourly": {
+            "task": "expire_documents",
+            "schedule": 3600,  # once per hour
+        },
+    },
 )
