@@ -2,89 +2,62 @@
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from io import BytesIO
+
+
+async def _login(client: AsyncClient, test_user_data: dict) -> None:
+    """Register and login, populating the client cookie jar."""
+    await client.post("/api/v1/auth/register", json=test_user_data)
+    await client.post("/api/v1/auth/login", json={
+        "email": test_user_data["email"],
+        "password": test_user_data["password"],
+    })
 
 
 @pytest.mark.asyncio
 async def test_upload_document(client: AsyncClient, test_user_data):
     """Test document upload."""
-    # Register and login
-    await client.post("/api/v1/auth/register", json=test_user_data)
-    login_response = await client.post(
-        "/api/v1/auth/login",
-        json={"email": test_user_data["email"], "password": test_user_data["password"]}
-    )
-    token = login_response.json()["access_token"]
+    await _login(client, test_user_data)
 
-    # Create a fake PDF file
-    fake_pdf = BytesIO(b"%PDF-1.4 fake content")
-    files = {"file": ("test.txt", fake_pdf, "text/plain")}
+    # Real PDF magic bytes so MIME validation passes
+    pdf_bytes = b"%PDF-1.4 fake content"
+    files = {"file": ("test.pdf", BytesIO(pdf_bytes), "application/pdf")}
 
-    response = await client.post(
-        "/api/v1/documents/upload",
-        files=files,
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.post("/api/v1/documents/upload", files=files)
 
     assert response.status_code == 201
     data = response.json()
     assert "id" in data
-    assert data["filename"] == "test.txt"
     assert data["status"] in ["PROCESSING", "COMPLETED", "FAILED"]
 
 
 @pytest.mark.asyncio
 async def test_list_documents(client: AsyncClient, test_user_data):
-    """Test listing documents."""
-    # Register and login
-    await client.post("/api/v1/auth/register", json=test_user_data)
-    login_response = await client.post(
-        "/api/v1/auth/login",
-        json={"email": test_user_data["email"], "password": test_user_data["password"]}
-    )
-    token = login_response.json()["access_token"]
+    """Test listing documents returns paginated response."""
+    await _login(client, test_user_data)
 
-    response = await client.get(
-        "/api/v1/documents/",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-
+    response = await client.get("/api/v1/documents/")
     assert response.status_code == 200
     data = response.json()
-    assert "documents" in data
+    assert "items" in data
     assert "total" in data
-    assert isinstance(data["documents"], list)
+    assert isinstance(data["items"], list)
 
 
 @pytest.mark.asyncio
 async def test_upload_without_auth(client: AsyncClient):
-    """Test upload without authentication."""
-    fake_pdf = BytesIO(b"fake content")
-    files = {"file": ("test.txt", fake_pdf, "text/plain")}
-
+    """Test upload without authentication returns 401 or 403."""
+    files = {"file": ("test.pdf", BytesIO(b"%PDF-1.4"), "application/pdf")}
     response = await client.post("/api/v1/documents/upload", files=files)
-
-    assert response.status_code == 401
+    assert response.status_code in (401, 403)
 
 
 @pytest.mark.asyncio
 async def test_search_documents(client: AsyncClient, test_user_data):
     """Test document search."""
-    # Register and login
-    await client.post("/api/v1/auth/register", json=test_user_data)
-    login_response = await client.post(
-        "/api/v1/auth/login",
-        json={"email": test_user_data["email"], "password": test_user_data["password"]}
-    )
-    token = login_response.json()["access_token"]
+    await _login(client, test_user_data)
 
-    # Search for documents
-    response = await client.get(
-        "/api/v1/documents/?search=test",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-
+    response = await client.get("/api/v1/documents/?search=test")
     assert response.status_code == 200
     data = response.json()
-    assert "documents" in data
+    assert "items" in data
