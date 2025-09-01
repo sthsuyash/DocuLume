@@ -24,6 +24,8 @@ import {
   Calendar,
   ArrowLeft,
   Download,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -134,6 +136,27 @@ export default function AnalyticsPage() {
         description: parsedError.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const exportFeedback = async (format: "csv" | "json") => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+    try {
+      const resp = await fetch(`${apiBase}/admin/analytics/feedback/export?format=${format}`, {
+        credentials: "include",
+      });
+      if (!resp.ok) throw new Error("Export failed");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `feedback-export.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Success", description: `Feedback exported as ${format.toUpperCase()}` });
+    } catch (error: any) {
+      const parsedError = parseApiError(error);
+      toast({ title: parsedError.title, description: parsedError.message, variant: "destructive" });
     }
   };
 
@@ -386,6 +409,46 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Feedback Export */}
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>User Feedback</CardTitle>
+                <CardDescription>Export thumbs up/down ratings on AI responses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-6 mb-6">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-full bg-green-100 p-2 dark:bg-green-900/30">
+                      <ThumbsUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Positive</p>
+                      <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                        {analytics?.conversation_stats ? "—" : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-full bg-red-100 p-2 dark:bg-red-900/30">
+                      <ThumbsDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Negative</p>
+                      <p className="text-lg font-bold text-red-600 dark:text-red-400">—</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button variant="outline" onClick={() => exportFeedback("csv")} className="gap-2">
+                    <Download className="h-4 w-4" />Export Feedback CSV
+                  </Button>
+                  <Button variant="outline" onClick={() => exportFeedback("json")} className="gap-2">
+                    <Download className="h-4 w-4" />Export Feedback JSON
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Conversation Insights */}
             <Card className="mt-8">

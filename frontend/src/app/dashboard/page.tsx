@@ -7,11 +7,23 @@ import apiClient from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { Upload, MessageSquare, FileText, LogOut, Settings } from "lucide-react";
+import { Upload, MessageSquare, FileText, LogOut, Settings, BarChart2, Zap, DollarSign } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FileDropzone } from "@/components/file-dropzone";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 import { BrandLogo } from "@/components/brand-logo";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
+import { NotificationBell } from "@/components/notification-bell";
+import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
+
+interface UsageStats {
+  document_count: number;
+  conversation_count: number;
+  message_count: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_cost_usd: number;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -19,6 +31,8 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState([]);
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<UsageStats | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -30,9 +44,17 @@ export default function DashboardPage() {
         return;
       }
       fetchDocuments();
+      fetchStats();
     };
     init();
   }, [router, checkAuth]);
+
+  const fetchStats = async () => {
+    try {
+      const r = await apiClient.get("/users/me/stats");
+      setStats(r.data);
+    } catch { /* non-critical */ }
+  };
 
   const fetchDocuments = async () => {
     try {
@@ -70,6 +92,7 @@ export default function DashboardPage() {
             <span className="hidden text-sm font-medium text-muted-foreground sm:inline-block">
               Welcome, {user?.username}
             </span>
+            <NotificationBell />
             <ThemeToggle />
             <Button
               onClick={() => router.push("/settings")}
@@ -87,9 +110,38 @@ export default function DashboardPage() {
       </header>
 
       <main className="container mx-auto max-w-7xl px-4 py-8 md:py-12">
+        {user && !user.is_verified && !bannerDismissed && (
+          <div className="mb-6">
+            <EmailVerificationBanner onDismiss={() => setBannerDismissed(true)} />
+          </div>
+        )}
+
         <div className="mb-12 fade-up">
           <FileDropzone onUploadComplete={fetchDocuments} />
         </div>
+
+        {stats && (
+          <div className="mb-8 grid gap-4 grid-cols-2 md:grid-cols-4 fade-up">
+            {[
+              { label: "Documents", value: stats.document_count, icon: FileText },
+              { label: "Conversations", value: stats.conversation_count, icon: MessageSquare },
+              { label: "Total Tokens", value: (stats.total_prompt_tokens + stats.total_completion_tokens).toLocaleString(), icon: Zap },
+              { label: "Est. Cost", value: `$${stats.total_cost_usd.toFixed(4)}`, icon: DollarSign },
+            ].map(({ label, value, icon: Icon }) => (
+              <Card key={label} className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                    <Icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground truncate">{label}</p>
+                    <p className="text-lg font-bold truncate">{value}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
 
         <div className="mb-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card className="group fade-up hover:shadow-lg">
@@ -186,6 +238,7 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+      <KeyboardShortcutsModal />
     </div>
   );
 }
