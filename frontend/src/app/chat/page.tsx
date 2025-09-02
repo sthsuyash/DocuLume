@@ -1,268 +1,351 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth-store";
-import apiClient from "@/lib/api/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, ArrowLeft, Menu, MessageSquare } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import { ConversationSidebar } from "@/components/conversation-sidebar";
-import { ChatSkeleton } from "@/components/loading-skeleton";
+import { Card } from "@/components/ui/card";
+import { MessageSquare } from "lucide-react";
+import apiClient from "@/lib/api/client";
 import { parseApiError } from "@/lib/utils/errors";
+import { ConversationSidebar } from "@/components/conversation-sidebar";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { useContextWebSocket } from "@/hooks/useContextWebSocket";
-import { ContextPanel } from "@/components/context";
+import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
+import { ChatHeader } from "@/components/chat/ChatHeader";
+import { ChatInput } from "@/components/chat/ChatInput";
+import { MessageBubble } from "@/components/chat/MessageBubble";
+import type { Message, SourceDetail } from "@/types/chat";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  sources?: string[];
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 export default function ChatPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, user } = useAuthStore();
+  const { toast } = useToast();
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<number | undefined>();
+
+  // Chat settings
   const [useStreaming, setUseStreaming] = useState(true);
   const [useDocuments, setUseDocuments] = useState(false);
-  const { toast } = useToast();
+  const [useHybrid, setUseHybrid] = useState(false);
+  const [temperature, setTemperature] = useState(0.7);
+  const [selectedDocIds, setSelectedDocIds] = useState<number[]>([]);
+  const [availableDocs, setAvailableDocs] = useState<{ id: number; original_filename: string }[]>([]);
+  const [showDocSelector, setShowDocSelector] = useState(false);
+
+  // System prompt
+  const [showSystemPrompt, setShowSystemPrompt] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [systemPromptSaved, setSystemPromptSaved] = useState(false);
+
+  // Message editing
+  const [editingMsgIdx, setEditingMsgIdx] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Get access token from cookie for WebSocket
   const getAccessToken = () => {
-    if (typeof window === 'undefined') return ''; // Check if we're on client side
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find((c) => c.trim().startsWith('access_token='));
-    if (tokenCookie) {
-      return tokenCookie.split('=')[1];
-    }
-    return '';
+    if (typeof window === "undefined") return "";
+    const c = document.cookie.split(";").find((c) => c.trim().startsWith("access_token="));
+    return c ? c.split("=")[1] : "";
   };
 
-  // Connect to context WebSocket
-  const { context, summarization, isConnected, error: wsError } = useContextWebSocket({
+  const { context, summarization, isConnected } = useContextWebSocket({
     conversationId: currentConversationId || 0,
     token: getAccessToken(),
-    apiUrl: process.env.NEXT_PUBLIC_API_UR || 'http://localhost:8000/api/v1',
+    apiUrl: API_BASE,
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/auth/login");
-    }
+    if (!isAuthenticated) router.push("/auth/login");
   }, [isAuthenticated, router]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const docId = searchParams.get("document_id");
+    if (docId) { setUseDocuments(true); setSelectedDocIds([parseInt(docId)]); }
+
+    const templateId = searchParams.get("template_id");
+    if (templateId && isAuthenticated) {
+      apiClient.get("/chat/templates").then((r) => {
+        const tmpl = r.data.find((t: any) => String(t.id) === templateId);
+        if (tmpl) { setSystemPrompt(tmpl.system_prompt || ""); setShowSystemPrompt(true); }
+      }).catch(() => {});
+    }
+  }, [searchParams, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiClient.get("/documents/", { params: { page: 1, page_size: 100 } })
+      .then((r) => setAvailableDocs(r.data.items || []))
+      .catch(() => {});
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handler = (event: CustomEvent) => {
+      toast({ title: "Document ready", description: `"${event.detail.filename}" has been processed.` });
+    };
+    window.addEventListener("document.ready" as any, handler);
+    return () => window.removeEventListener("document.ready" as any, handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        (document.getElementById("chat-form") as HTMLFormElement | null)?.requestSubmit();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const loadConversationMessages = async (conversationId: number) => {
     try {
-      const response = await apiClient.get(`/chat/conversations/${conversationId}/messages`);
-      const loadedMessages: Message[] = response.data.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content,
-        sources: msg.sources || undefined,
-      }));
-      setMessages(loadedMessages);
-    } catch (error: any) {
-      const parsedError = parseApiError(error);
-      toast({
-        title: parsedError.title,
-        description: parsedError.message,
-        variant: "destructive",
-      });
+      const r = await apiClient.get(`/chat/conversations/${conversationId}/messages`);
+      setMessages(r.data.map((msg: any) => ({
+        id: msg.id, role: msg.role, content: msg.content,
+        sources: msg.sources, source_details: msg.source_details,
+        prompt_tokens: msg.prompt_tokens, completion_tokens: msg.completion_tokens,
+        estimated_cost_usd: msg.estimated_cost_usd, is_edited: msg.is_edited,
+      })));
+    } catch (err: any) {
+      const e = parseApiError(err);
+      toast({ title: e.title, description: e.message, variant: "destructive" });
     }
   };
 
+  const saveSystemPrompt = async () => {
+    if (!currentConversationId) return;
+    try {
+      await apiClient.patch(`/chat/conversations/${currentConversationId}`, { system_prompt: systemPrompt || null });
+      setSystemPromptSaved(true);
+      setTimeout(() => setSystemPromptSaved(false), 2000);
+    } catch (err: any) {
+      const e = parseApiError(err);
+      toast({ title: e.title, description: e.message, variant: "destructive" });
+    }
+  };
+
+  const submitFeedback = async (messageId: number, value: "up" | "down", idx: number) => {
+    try {
+      const current = messages[idx].feedback;
+      if (current === value) {
+        await apiClient.delete(`/chat/messages/${messageId}/feedback`);
+        setMessages((prev) => prev.map((m, i) => i === idx ? { ...m, feedback: null } : m));
+      } else {
+        await apiClient.post(`/chat/messages/${messageId}/feedback`, { value });
+        setMessages((prev) => prev.map((m, i) => i === idx ? { ...m, feedback: value } : m));
+      }
+    } catch { /* silent */ }
+  };
+
+  const handleRegenerate = async () => {
+    if (!currentConversationId || isLoading) return;
+    setIsLoading(true);
+    try {
+      const { data: d } = await apiClient.post(`/chat/conversations/${currentConversationId}/regenerate`);
+      setMessages((prev) => {
+        const next = [...prev];
+        const lastIdx = next.map((m, i) => [m, i] as [Message, number]).reverse().find(([m]) => m.role === "assistant")?.[1];
+        if (lastIdx != null) {
+          next[lastIdx] = {
+            id: d.message_id, role: "assistant", content: d.answer,
+            sources: d.sources, source_details: d.source_details,
+            prompt_tokens: d.prompt_tokens, completion_tokens: d.completion_tokens,
+            estimated_cost_usd: d.estimated_cost_usd,
+          };
+        }
+        return next;
+      });
+    } catch (err: any) {
+      const e = parseApiError(err);
+      toast({ title: e.title, description: e.message, variant: "destructive" });
+    } finally { setIsLoading(false); }
+  };
+
+  const handleShare = async () => {
+    if (!currentConversationId) return;
+    try {
+      const { data } = await apiClient.post(`/chat/conversations/${currentConversationId}/share`);
+      const url = `${window.location.origin}/share/${data.token}`;
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied!", description: "Anyone with the link can view this conversation." });
+    } catch (err: any) {
+      const e = parseApiError(err);
+      toast({ title: e.title, description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!currentConversationId) return;
+    try {
+      await apiClient.post(`/chat/conversations/${currentConversationId}/archive`);
+      toast({ title: "Archived", description: "Conversation hidden from list." });
+      setMessages([]); setCurrentConversationId(undefined);
+    } catch (err: any) {
+      const e = parseApiError(err);
+      toast({ title: e.title, description: e.message, variant: "destructive" });
+    }
+  };
+
+  const commitEdit = async (idx: number) => {
+    const msg = messages[idx];
+    if (!msg.id || !editContent.trim()) { setEditingMsgIdx(null); return; }
+    try {
+      await apiClient.patch(`/chat/messages/${msg.id}`, { content: editContent.trim(), delete_subsequent: msg.role === "user" });
+      setMessages((prev) => {
+        const next = [...prev];
+        if (msg.role === "user") {
+          return next.slice(0, idx + 1).map((m, i) => i === idx ? { ...m, content: editContent.trim(), is_edited: true } : m);
+        }
+        next[idx] = { ...next[idx], content: editContent.trim(), is_edited: true };
+        return next;
+      });
+      setEditingMsgIdx(null);
+    } catch (err: any) {
+      const e = parseApiError(err);
+      toast({ title: e.title, description: e.message, variant: "destructive" });
+    }
+  };
+
+  const getCsrfToken = () => {
+    const m = document.cookie.match(/csrf_token=([^;]+)/);
+    return m ? m[1] : "";
+  };
+
   const handleStreamingSubmit = async (question: string) => {
-    // Get CSRF token from cookie
-    const getCsrfToken = () => {
-      const match = document.cookie.match(/csrf_token=([^;]+)/);
-      return match ? match[1] : '';
-    };
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/ask/stream`, {
-      method: 'POST',
-      credentials: 'include',  // Send cookies
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': getCsrfToken()  // CSRF protection
-      },
+    const response = await fetch(`${API_BASE}/chat/ask/stream`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrfToken() },
       body: JSON.stringify({
-        question,
-        conversation_id: currentConversationId,
-        use_rag: useDocuments,
-        top_k: useDocuments ? 5 : 0
-      })
+        question, conversation_id: currentConversationId,
+        use_rag: useDocuments, use_hybrid: useHybrid, top_k: useDocuments ? 5 : 0,
+        temperature,
+        ...(useDocuments && selectedDocIds.length > 0 ? { document_ids: selectedDocIds } : {}),
+      }),
     });
-
-    if (!response.ok) throw new Error('Stream failed');
+    if (!response.ok) throw new Error("Stream failed");
 
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
-
-    let accumulatedContent = '';
+    let accumulated = "";
     let sources: string[] = [];
+    let sourceDetails: SourceDetail[] = [];
     let conversationId: number | undefined;
+    let messageId: number | undefined;
 
-    // Add empty assistant message that we'll update
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     while (true) {
       const { done, value } = await reader!.read();
       if (done) break;
-
-      const text = decoder.decode(value);
-      const lines = text.split('\n').filter(line => line.startsWith('data:'));
-
-      for (const line of lines) {
-        const data = line.replace('data: ', '').trim();
-        if (data === '[DONE]') break;
-
+      for (const line of decoder.decode(value).split("\n").filter((l) => l.startsWith("data:"))) {
+        const data = line.replace("data: ", "").trim();
+        if (data === "[DONE]") break;
         try {
-          const parsed = JSON.parse(data);
-          if (parsed.chunk) {
-            accumulatedContent += parsed.chunk;
+          const p = JSON.parse(data);
+          if (p.chunk) {
+            accumulated += p.chunk;
             setMessages((prev) => {
-              const newMessages = [...prev];
-              if (newMessages[newMessages.length - 1]?.role === 'assistant') {
-                newMessages[newMessages.length - 1].content = accumulatedContent;
-              }
-              return newMessages;
+              const next = [...prev];
+              if (next[next.length - 1]?.role === "assistant") next[next.length - 1].content = accumulated;
+              return next;
             });
           }
-          if (parsed.sources) sources = parsed.sources;
-          if (parsed.conversation_id) conversationId = parsed.conversation_id;
-        } catch (e) {
-          console.error('Parse error:', e);
-        }
+          if (p.sources) sources = p.sources;
+          if (p.source_details) sourceDetails = p.source_details;
+          if (p.conversation_id) conversationId = p.conversation_id;
+          if (p.message_id) messageId = p.message_id;
+        } catch { /* ignore parse errors */ }
       }
     }
 
-    // Update final message with sources
     setMessages((prev) => {
-      const newMessages = [...prev];
-      if (newMessages[newMessages.length - 1]?.role === 'assistant') {
-        newMessages[newMessages.length - 1].sources = sources;
-      }
-      return newMessages;
+      const next = [...prev];
+      const last = next[next.length - 1];
+      if (last?.role === "assistant") { last.id = messageId; last.sources = sources; last.source_details = sourceDetails; }
+      return next;
     });
-    setCurrentConversationId(conversationId);
+    if (conversationId) setCurrentConversationId(conversationId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = { role: "user", content: input };
     const question = input;
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [...prev, { role: "user", content: question }]);
     setInput("");
     setIsLoading(true);
-
     try {
       if (useStreaming) {
         await handleStreamingSubmit(question);
       } else {
-        const response = await apiClient.post("/chat/ask", {
-          question,
-          conversation_id: currentConversationId,
-          use_rag: useDocuments,
-          top_k: useDocuments ? 5 : 0,
+        const { data: d } = await apiClient.post("/chat/ask", {
+          question, conversation_id: currentConversationId,
+          use_rag: useDocuments, use_hybrid: useHybrid, top_k: useDocuments ? 5 : 0,
+          temperature,
+          ...(useDocuments && selectedDocIds.length > 0 ? { document_ids: selectedDocIds } : {}),
         });
-
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: response.data.answer,
-          sources: response.data.sources,
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
-        setCurrentConversationId(response.data.conversation_id);
+        setMessages((prev) => [...prev, {
+          id: d.message_id, role: "assistant", content: d.answer,
+          sources: d.sources, source_details: d.source_details,
+          prompt_tokens: d.prompt_tokens, completion_tokens: d.completion_tokens,
+          estimated_cost_usd: d.estimated_cost_usd,
+        }]);
+        setCurrentConversationId(d.conversation_id);
       }
-    } catch (error: any) {
-      const parsedError = parseApiError(error);
-
-      // Show error toast
-      toast({
-        title: parsedError.title,
-        description: parsedError.message,
-        variant: "destructive",
-      });
-
-      // Add error message to chat for visibility
-      const errorMessage: Message = {
-        role: "assistant",
-        content: `❌ **Error**: ${parsedError.message}\n\nPlease make sure:\n- Backend is running\n- You have uploaded documents\n- You are authenticated`,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (err: any) {
+      const e = parseApiError(err);
+      toast({ title: e.title, description: e.message, variant: "destructive" });
+      setMessages((prev) => [...prev, { role: "assistant", content: `**Error**: ${e.message}` }]);
+    } finally { setIsLoading(false); }
   };
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  const lastAssistantIdx = [...messages].map((m, i) => [m, i] as [Message, number]).reverse().find(([m]) => m.role === "assistant")?.[1];
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="flex h-screen bg-background text-foreground">
-      {/* Sidebar */}
-      <div
-        className={`
-          fixed inset-y-0 left-0 z-40 w-64 transform border-r bg-card transition-transform lg:relative lg:translate-x-0
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
+      <div className={`fixed inset-y-0 left-0 z-40 w-64 transform border-r bg-card transition-transform lg:relative lg:translate-x-0
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <ConversationSidebar
           currentConversationId={currentConversationId}
-          onSelectConversation={(id) => {
-            setCurrentConversationId(id);
-            setSidebarOpen(false);
-            loadConversationMessages(id);
-          }}
-          onNewConversation={() => {
-            setMessages([]);
-            setCurrentConversationId(undefined);
-            setSidebarOpen(false);
-          }}
+          onSelectConversation={(id) => { setCurrentConversationId(id); setSidebarOpen(false); loadConversationMessages(id); }}
+          onNewConversation={() => { setMessages([]); setCurrentConversationId(undefined); setSystemPrompt(""); setSidebarOpen(false); }}
         />
       </div>
+      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {user && !user.is_verified && (
+          <div className="px-4 pt-3"><EmailVerificationBanner /></div>
+        )}
+
+        <ChatHeader
+          conversationId={currentConversationId}
+          showSystemPrompt={showSystemPrompt}
+          systemPrompt={systemPrompt}
+          systemPromptSaved={systemPromptSaved}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onToggleSystemPrompt={() => setShowSystemPrompt(!showSystemPrompt)}
+          onSystemPromptChange={setSystemPrompt}
+          onSystemPromptClear={() => setSystemPrompt("")}
+          onSystemPromptSave={saveSystemPrompt}
+          onShare={handleShare}
+          onArchive={handleArchive}
         />
-      )}
-
-      {/* Main content */}
-      <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur-md px-4 py-3 supports-[backdrop-filter]:bg-card/60">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-xl font-semibold">Chat with your Documents</h1>
-          </div>
-        </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="mx-auto max-w-4xl space-y-6">
@@ -270,119 +353,66 @@ export default function ChatPage() {
               <Card className="fade-in mt-12 border-dashed p-12 text-center">
                 <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <p className="mt-4 text-lg font-medium">Start a conversation</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Ask questions about your uploaded documents
-                </p>
+                <p className="mt-2 text-sm text-muted-foreground">Ask questions about your documents · Cmd+Enter to send</p>
               </Card>
             )}
-
             {messages.map((message, index) => (
-              <div
+              <MessageBubble
                 key={index}
-                className={`fade-up flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <Card
-                  className={`max-w-[85%] p-4 md:p-5 ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card"
-                  }`}
-                >
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown>
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="mt-3 border-t border-current/20 pt-3">
-                      <p className="text-xs font-semibold opacity-80">Sources:</p>
-                      <div className="mt-1 space-y-1">
-                        {message.sources.slice(0, 3).map((source, i) => (
-                          <p key={i} className="text-xs opacity-70 truncate">{source}</p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              </div>
+                message={message}
+                index={index}
+                isLastAssistant={index === lastAssistantIdx}
+                isRegenerating={isLoading}
+                editingIdx={editingMsgIdx}
+                editContent={editContent}
+                onEditStart={(idx, content) => { setEditingMsgIdx(idx); setEditContent(content); }}
+                onEditChange={setEditContent}
+                onEditCommit={commitEdit}
+                onEditCancel={() => setEditingMsgIdx(null)}
+                onFeedback={submitFeedback}
+                onRegenerate={handleRegenerate}
+              />
             ))}
-
             {isLoading && (
               <div className="fade-in flex justify-start">
                 <Card className="p-4">
                   <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
-                    <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary" style={{ animationDelay: "150ms" }} />
-                    <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary" style={{ animationDelay: "300ms" }} />
+                    {[0, 150, 300].map((d) => (
+                      <div key={d} className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary" style={{ animationDelay: `${d}ms` }} />
+                    ))}
                   </div>
                 </Card>
               </div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
         </div>
 
-        <div className="border-t bg-card/80 p-4 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
-          <div className="container mx-auto max-w-4xl space-y-3">
-            {/* Context usage indicator */}
-            {currentConversationId && context && (
-              <div className="fade-in">
-                <ContextPanel context={context} summarization={summarization} compact />
-              </div>
-            )}
-
-            {/* WebSocket connection warning */}
-            {currentConversationId && !isConnected && (
-              <div className="fade-in rounded-lg bg-orange-500/10 px-3 py-2 text-xs text-orange-600 dark:text-orange-400">
-                ⚠ Context tracking disconnected
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="streaming"
-                  checked={useStreaming}
-                  onChange={(e) => setUseStreaming(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary"
-                />
-                <label htmlFor="streaming" className="cursor-pointer select-none text-muted-foreground">
-                  Stream responses
-                </label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="useDocuments"
-                  checked={useDocuments}
-                  onChange={(e) => setUseDocuments(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary"
-                />
-                <label htmlFor="useDocuments" className="cursor-pointer select-none text-muted-foreground">
-                  Search documents
-                </label>
-              </div>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask a question..."
-                  className="flex-1 rounded-full"
-                  disabled={isLoading}
-                />
-                <Button type="submit" disabled={isLoading || !input.trim()} size="icon" className="rounded-full">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ChatInput
+          input={input}
+          isLoading={isLoading}
+          useStreaming={useStreaming}
+          useDocuments={useDocuments}
+          useHybrid={useHybrid}
+          temperature={temperature}
+          selectedDocIds={selectedDocIds}
+          availableDocs={availableDocs}
+          showDocSelector={showDocSelector}
+          conversationId={currentConversationId}
+          context={context}
+          summarization={summarization}
+          isConnected={isConnected}
+          onInputChange={setInput}
+          onSubmit={handleSubmit}
+          onStreamingToggle={setUseStreaming}
+          onDocumentsToggle={setUseDocuments}
+          onHybridToggle={setUseHybrid}
+          onTemperatureChange={setTemperature}
+          onDocSelectorToggle={() => setShowDocSelector(!showDocSelector)}
+          onDocSelection={setSelectedDocIds}
+        />
       </div>
+      <KeyboardShortcutsModal />
     </div>
   );
 }
