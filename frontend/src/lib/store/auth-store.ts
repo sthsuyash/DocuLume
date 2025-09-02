@@ -1,13 +1,17 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import apiClient from '../api/client';
+import apiClient from '@/lib/api/client';
 
 interface User {
   id: number;
   email: string;
   username: string;
   full_name?: string;
+  avatar_url?: string;
   is_admin?: boolean;
+  is_verified?: boolean;
+  oauth_provider?: string | null;
+  preferences?: Record<string, unknown>;
 }
 
 interface AuthState {

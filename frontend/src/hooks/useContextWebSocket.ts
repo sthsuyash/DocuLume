@@ -53,10 +53,18 @@ interface SummarizationCompleteEvent {
   };
 }
 
+interface DocumentReadyEvent {
+  type: 'document.ready';
+  document_id: number;
+  filename: string;
+  chunk_count: number;
+}
+
 type WebSocketEvent =
   | ContextUpdateEvent
   | SummarizationStartedEvent
-  | SummarizationCompleteEvent;
+  | SummarizationCompleteEvent
+  | DocumentReadyEvent;
 
 export function useContextWebSocket({
   conversationId,
@@ -203,6 +211,19 @@ export function useContextWebSocket({
             setTimeout(() => {
               setSummarization({ status: 'idle' });
             }, 5000);
+            break;
+          }
+
+          case 'document.ready': {
+            window.dispatchEvent(
+              new CustomEvent('document.ready', {
+                detail: {
+                  document_id: message.document_id,
+                  filename: message.filename,
+                  chunk_count: message.chunk_count,
+                },
+              })
+            );
             break;
           }
         }
