@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Summarization Status Indicator
  * Shows when conversation summarization is happening
  */
@@ -6,7 +6,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
-import { Alert, AlertDescription } from '../ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SummarizationStatusProps {
   status: 'idle' | 'summarizing' | 'complete' | 'error';
