@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Main Context Panel
  * Combines all context visualization components
  */
@@ -8,7 +8,7 @@ import { ContextUsageBar } from './ContextUsageBar';
 import { ContextBreakdown } from './ContextBreakdown';
 import { ModelInfoPanel } from './ModelInfoPanel';
 import { SummarizationStatus } from './SummarizationStatus';
-import { Card } from '../ui/card';
+import { Card } from '@/components/ui/card';
 
 export interface ContextData {
   totalTokens: number;
@@ -39,7 +39,7 @@ export interface SummarizationState {
 
 interface ContextPanelProps {
   context: ContextData | null;
-  summarization: SummarizationState;
+  summarization: SummarizationState | null;
   className?: string;
   compact?: boolean;
 }
@@ -71,7 +71,7 @@ export function ContextPanel({
   return (
     <div className={`space-y-3 ${className}`}>
       {/* Summarization status */}
-      {summarization.status !== 'idle' && (
+      {summarization && summarization.status !== 'idle' && (
         <SummarizationStatus
           status={summarization.status}
           messagesCount={summarization.messagesCount}

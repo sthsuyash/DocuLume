@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Context Token Breakdown by Role
  * Shows detailed breakdown of tokens by message role
  */
@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, User, Bot, Settings } from 'lucide-react';
-import { Card } from '../ui/card';
+import { Card } from '@/components/ui/card';
 
 interface TokensByRole {
   system: number;

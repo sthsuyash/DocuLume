@@ -1,11 +1,11 @@
-/**
+﻿/**
  * Model Information Panel
  * Displays current LLM model and its context limits
  */
 
 import React from 'react';
 import { Brain, Zap, DollarSign } from 'lucide-react';
-import { Card } from '../ui/card';
+import { Card } from '@/components/ui/card';
 
 interface ModelInfoPanelProps {
   modelName: string;
