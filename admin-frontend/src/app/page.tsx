@@ -6,12 +6,12 @@ import { useAuthStore } from '@/lib/store/auth-store';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { checkAuth } = useAuthStore();
 
   useEffect(() => {
     const init = async () => {
       await checkAuth();
-      if (isAuthenticated) {
+      if (useAuthStore.getState().isAuthenticated) {
         router.push('/dashboard');
       } else {
         router.push('/auth/login');
