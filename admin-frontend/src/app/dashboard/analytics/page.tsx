@@ -1,213 +1,100 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import apiClient from '@/lib/api/client';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import { AdminLayout } from '@/components/admin-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
-import { parseApiError } from '@/lib/utils/errors';
+import { formatBytes } from '@/lib/utils';
+import type { RecentActivity } from '@/types/analytics';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  TrendingUp,
-  Users,
-  FileText,
-  MessageSquare,
-  Download,
-} from 'lucide-react';
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import { Users, FileText, MessageSquare, HardDrive, Download } from 'lucide-react';
 
-interface AnalyticsData {
-  overview: {
-    total_users: number;
-    total_documents: number;
-    total_conversations: number;
-    total_messages: number;
-    growth_rate_users: number;
-    growth_rate_documents: number;
-  };
-  time_series: {
-    date: string;
-    users: number;
-    documents: number;
-    conversations: number;
-  }[];
-  top_users: {
-    username: string;
-    email: string;
-    document_count: number;
-    conversation_count: number;
-    message_count: number;
-  }[];
-  document_types: {
-    file_type: string;
-    count: number;
-    percentage: number;
-  }[];
-  conversation_stats: {
-    avg_messages_per_conversation: number;
-    avg_conversation_length_minutes: number;
-    most_active_hour: number;
-    total_rag_queries: number;
-  };
-}
+const ACTIVITY_META: Record<RecentActivity['type'], { label: string; fill: string }> = {
+  user_registered:      { label: 'Registrations', fill: '#3b82f6' },
+  document_uploaded:    { label: 'Uploads',        fill: '#22c55e' },
+  conversation_started: { label: 'Conversations',  fill: '#a855f7' },
+};
 
 export default function AnalyticsPage() {
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('7d');
-  const { toast } = useToast();
+  const { stats, activity, topUsers, loading, fetchAnalytics, exportFeedback } = useAnalytics();
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange]);
+  const activityChartData = (Object.keys(ACTIVITY_META) as RecentActivity['type'][]).map((type) => ({
+    name: ACTIVITY_META[type].label,
+    count: activity.filter((a) => a.type === type).length,
+    fill: ACTIVITY_META[type].fill,
+  }));
 
-  const fetchAnalytics = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get('/admin/analytics', {
-        params: { time_range: timeRange },
-      });
-      setAnalytics(response.data);
-    } catch (error: any) {
-      const parsedError = parseApiError(error);
-      toast({
-        title: parsedError.title,
-        description: parsedError.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const exportAnalytics = async (format: 'csv' | 'json') => {
-    try {
-      const response = await apiClient.get(`/admin/analytics/export?format=${format}`, {
-        responseType: 'blob',
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `analytics_${timeRange}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: 'Success',
-        description: `Analytics exported as ${format.toUpperCase()}`,
-      });
-    } catch (error: any) {
-      const parsedError = parseApiError(error);
-      toast({
-        title: parsedError.title,
-        description: parsedError.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getBarWidth = (value: number, max: number) => {
-    return `${(value / max) * 100}%`;
-  };
+  const topUserChartData = [...topUsers]
+    .sort((a, b) => b.document_count - a.document_count)
+    .slice(0, 7)
+    .map((u) => ({ name: u.username, docs: u.document_count }));
 
   return (
     <AdminLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Analytics</h1>
-            <p className="text-muted-foreground mt-1">
-              Usage trends and system insights
-            </p>
+            <p className="text-muted-foreground mt-1">Usage trends and system insights</p>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Time range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="24h">Last 24 hours</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-                <SelectItem value="all">All time</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={() => exportAnalytics('csv')}>
+            <Button variant="outline" size="sm" onClick={() => exportFeedback('csv')}>
               <Download className="mr-2 h-4 w-4" />
-              CSV
+              Export CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportAnalytics('json')}>
+            <Button variant="outline" size="sm" onClick={() => exportFeedback('json')}>
               <Download className="mr-2 h-4 w-4" />
-              JSON
+              Export JSON
             </Button>
+            <Button variant="outline" size="sm" onClick={fetchAnalytics}>Refresh</Button>
           </div>
         </div>
 
         {loading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 animate-pulse rounded-lg bg-slate-200" />
-            ))}
+          <div className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-32 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+              ))}
+            </div>
+            <div className="h-64 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
           </div>
         ) : (
           <>
-            {/* Overview Stats */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 fade-up">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card className="border-0 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
                     <Users className="h-5 w-5 text-blue-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{analytics?.overview.total_users || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <span
-                      className={
-                        analytics?.overview.growth_rate_users && analytics.overview.growth_rate_users > 0
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      }
-                    >
-                      {analytics?.overview.growth_rate_users?.toFixed(1) || 0}%
-                    </span>{' '}
-                    vs previous period
-                  </p>
+                  <div className="text-3xl font-bold">{stats?.total_users ?? 0}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{stats?.active_users ?? 0} active</p>
                 </CardContent>
               </Card>
 
               <Card className="border-0 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Documents</CardTitle>
-                  <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-lg bg-green-50 dark:bg-green-950 flex items-center justify-center">
                     <FileText className="h-5 w-5 text-green-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{analytics?.overview.total_documents || 0}</div>
+                  <div className="text-3xl font-bold">{stats?.total_documents ?? 0}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    <span
-                      className={
-                        analytics?.overview.growth_rate_documents && analytics.overview.growth_rate_documents > 0
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      }
-                    >
-                      {analytics?.overview.growth_rate_documents?.toFixed(1) || 0}%
-                    </span>{' '}
-                    vs previous period
+                    {stats?.avg_documents_per_user?.toFixed(1) ?? 0} per user
                   </p>
                 </CardContent>
               </Card>
@@ -215,198 +102,97 @@ export default function AnalyticsPage() {
               <Card className="border-0 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Conversations</CardTitle>
-                  <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-lg bg-purple-50 dark:bg-purple-950 flex items-center justify-center">
                     <MessageSquare className="h-5 w-5 text-purple-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{analytics?.overview.total_conversations || 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {analytics?.overview.total_messages || 0} total messages
-                  </p>
+                  <div className="text-3xl font-bold">{stats?.total_conversations ?? 0}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{stats?.total_messages ?? 0} messages total</p>
                 </CardContent>
               </Card>
 
               <Card className="border-0 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Messages</CardTitle>
-                  <div className="h-10 w-10 rounded-lg bg-orange-50 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
+                  <div className="h-10 w-10 rounded-lg bg-orange-50 dark:bg-orange-950 flex items-center justify-center">
+                    <HardDrive className="h-5 w-5 text-orange-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">
-                    {analytics?.conversation_stats.avg_messages_per_conversation?.toFixed(1) || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Per conversation</p>
+                  <div className="text-3xl font-bold">{formatBytes(stats?.total_storage_bytes ?? 0)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Across all documents</p>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Time Series Chart */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle>Usage Trends</CardTitle>
-                <CardDescription>Activity over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {analytics?.time_series && analytics.time_series.length > 0 ? (
-                  <div className="space-y-6">
-                    <div className="h-64 flex items-end justify-between gap-2">
-                      {analytics.time_series.map((data, index) => {
-                        const maxValue = Math.max(
-                          ...analytics.time_series.map((d) => Math.max(d.users, d.documents, d.conversations))
-                        );
-                        const height = ((data.documents / maxValue) * 100) || 0;
-
-                        return (
-                          <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                            <div className="w-full flex flex-col items-center gap-1">
-                              <div
-                                className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
-                                style={{ height: `${height}%`, minHeight: height > 0 ? '4px' : '0' }}
-                                title={`${data.documents} documents`}
-                              />
-                              <div
-                                className="w-full bg-green-500 rounded-t transition-all hover:bg-green-600"
-                                style={{
-                                  height: `${((data.users / maxValue) * 100) || 0}%`,
-                                  minHeight: ((data.users / maxValue) * 100) > 0 ? '4px' : '0',
-                                }}
-                                title={`${data.users} users`}
-                              />
-                              <div
-                                className="w-full bg-purple-500 rounded-t transition-all hover:bg-purple-600"
-                                style={{
-                                  height: `${((data.conversations / maxValue) * 100) || 0}%`,
-                                  minHeight: ((data.conversations / maxValue) * 100) > 0 ? '4px' : '0',
-                                }}
-                                title={`${data.conversations} conversations`}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(data.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex justify-center gap-6 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-blue-500" />
-                        <span>Documents</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-green-500" />
-                        <span>Users</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-purple-500" />
-                        <span>Conversations</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">No time series data available</p>
-                )}
-              </CardContent>
-            </Card>
 
             <div className="grid gap-6 md:grid-cols-2">
-              {/* Top Users */}
               <Card className="border-0 shadow-sm">
                 <CardHeader>
-                  <CardTitle>Top Users</CardTitle>
-                  <CardDescription>Most active users by document count</CardDescription>
+                  <CardTitle>Recent Activity Breakdown</CardTitle>
+                  <CardDescription>Last 50 events by type</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {analytics?.top_users && analytics.top_users.length > 0 ? (
-                    <div className="space-y-4">
-                      {analytics.top_users.slice(0, 5).map((user, index) => {
-                        const maxDocs = Math.max(...analytics.top_users.map((u) => u.document_count));
-                        return (
-                          <div key={index} className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium truncate">{user.username}</span>
-                              <span className="text-muted-foreground">{user.document_count} docs</span>
-                            </div>
-                            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full transition-all"
-                                style={{ width: getBarWidth(user.document_count, maxDocs) }}
-                              />
-                            </div>
-                            <div className="flex gap-4 text-xs text-muted-foreground">
-                              <span>{user.conversation_count} conversations</span>
-                              <span>{user.message_count} messages</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8">No user data available</p>
-                  )}
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={activityChartData} barCategoryGap="30%">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        {activityChartData.map((entry, i) => (
+                          <Cell key={i} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
 
-              {/* Document Types */}
               <Card className="border-0 shadow-sm">
                 <CardHeader>
-                  <CardTitle>Document Types</CardTitle>
-                  <CardDescription>Distribution by file type</CardDescription>
+                  <CardTitle>Top Users by Documents</CardTitle>
+                  <CardDescription>Most active document uploaders</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {analytics?.document_types && analytics.document_types.length > 0 ? (
-                    <div className="space-y-4">
-                      {analytics.document_types.map((type, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium">{type.file_type || 'Unknown'}</span>
-                            <span className="text-muted-foreground">
-                              {type.count} ({type.percentage.toFixed(1)}%)
-                            </span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all"
-                              style={{ width: `${type.percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  {topUserChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={topUserChartData} layout="vertical" barCategoryGap="25%">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                        <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={80} />
+                        <Tooltip />
+                        <Bar dataKey="docs" name="Documents" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">No document type data available</p>
+                    <p className="text-center text-muted-foreground py-16">No user data available</p>
                   )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Conversation Insights */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle>Conversation Insights</CardTitle>
-                <CardDescription>Chat activity and patterns</CardDescription>
+                <CardTitle>Engagement Metrics</CardTitle>
+                <CardDescription>User behavior at a glance</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-6 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Avg Conversation Length</p>
-                    <p className="text-2xl font-bold">
-                      {analytics?.conversation_stats.avg_conversation_length_minutes?.toFixed(0) || 0} min
-                    </p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Avg Docs per User</p>
+                    <p className="text-2xl font-bold">{stats?.avg_documents_per_user?.toFixed(1) ?? '—'}</p>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Most Active Hour</p>
-                    <p className="text-2xl font-bold">
-                      {analytics?.conversation_stats.most_active_hour || 0}:00
-                    </p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Avg Conversations per User</p>
+                    <p className="text-2xl font-bold">{stats?.avg_conversations_per_user?.toFixed(1) ?? '—'}</p>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">RAG Queries</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">User Activation Rate</p>
                     <p className="text-2xl font-bold">
-                      {analytics?.conversation_stats.total_rag_queries || 0}
+                      {stats?.total_users
+                        ? `${(((stats.active_users ?? 0) / stats.total_users) * 100).toFixed(0)}%`
+                        : '—'}
                     </p>
                   </div>
                 </div>
