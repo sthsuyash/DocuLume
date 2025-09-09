@@ -1,7 +1,11 @@
 import axios from 'axios';
 import { parseApiError } from '@/lib/utils/errors';
+import { getCsrfToken } from '@/lib/utils/csrf';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_API_URL) {
+  throw new Error('NEXT_PUBLIC_API_URL must be set for production builds')
+}
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
 
 let isRefreshing = false;
 let failedQueue: any[] = [];
@@ -17,15 +21,6 @@ const processQueue = (error: any, token: string | null = null) => {
 
   failedQueue = [];
 };
-
-/**
- * Get CSRF token from cookies
- */
-function getCsrfToken(): string | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : null;
-}
 
 export const apiClient = axios.create({
   baseURL: API_URL,
