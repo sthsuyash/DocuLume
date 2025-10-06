@@ -4,15 +4,11 @@ import { motion } from 'framer-motion'
 import { Play, Monitor } from 'lucide-react'
 import { useState } from 'react'
 
-interface VideoDemoProps {
-  isDark: boolean
-}
-
-export function VideoDemo({ isDark }: VideoDemoProps) {
+export function VideoDemo() {
   const [isPlaying, setIsPlaying] = useState(false)
 
   return (
-    <section className={`scroll-mt-24 py-16 md:py-20 ${isDark ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
+    <section className="scroll-mt-24 py-16 md:py-20 bg-slate-50 dark:bg-slate-950/50">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-12 text-center">
           <motion.div
@@ -22,7 +18,7 @@ export function VideoDemo({ isDark }: VideoDemoProps) {
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">See DocuLume in action</h2>
-            <p className={`mt-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className="mt-3 text-slate-600 dark:text-slate-400">
               Watch how teams transform their document workflows in minutes
             </p>
           </motion.div>
@@ -35,42 +31,34 @@ export function VideoDemo({ isDark }: VideoDemoProps) {
           transition={{ duration: 0.5 }}
           className="relative mx-auto max-w-4xl"
         >
-          <div className={`group relative overflow-hidden rounded-2xl border shadow-2xl ${
-            isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
-          }`}>
+          <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             {/* Video thumbnail/placeholder */}
             <div className="relative aspect-video bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10">
               {!isPlaying ? (
                 <>
-                  {/* Placeholder content */}
                   <div className="flex h-full items-center justify-center">
                     <div className="text-center">
                       <motion.div
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setIsPlaying(true)}
-                        className={`mx-auto mb-4 flex size-20 cursor-pointer items-center justify-center rounded-full ${
-                          isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                        } shadow-xl transition-all hover:shadow-2xl`}
+                        className="mx-auto mb-4 flex size-20 cursor-pointer items-center justify-center rounded-full bg-blue-500 text-white shadow-xl transition-all hover:shadow-2xl dark:bg-blue-600"
                       >
                         <Play className="ml-1 size-10" fill="currentColor" />
                       </motion.div>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                      <p className="text-lg font-semibold text-slate-800 dark:text-slate-200">
                         Watch 2-minute demo
                       </p>
-                      <p className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                         See how to upload, query, and get answers
                       </p>
                     </div>
                   </div>
 
-                  {/* Decorative elements */}
                   <div className="pointer-events-none absolute inset-0">
-                    <div className={`absolute left-8 top-8 flex items-center gap-2 rounded-lg border px-3 py-1.5 ${
-                      isDark ? 'border-slate-700 bg-slate-900/90' : 'border-slate-200 bg-white/90'
-                    }`}>
-                      <Monitor className={`size-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-                      <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <div className="absolute left-8 top-8 flex items-center gap-2 rounded-lg border border-slate-200 bg-white/90 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900/90">
+                      <Monitor className="size-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                         Product Demo
                       </span>
                     </div>
@@ -78,8 +66,7 @@ export function VideoDemo({ isDark }: VideoDemoProps) {
                 </>
               ) : (
                 <div className="flex h-full items-center justify-center">
-                  {/* Placeholder for actual video iframe */}
-                  <div className={`text-center ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <div className="text-center text-slate-600 dark:text-slate-400">
                     <p className="text-sm">Video player would load here</p>
                     <p className="mt-2 text-xs">
                       Replace with YouTube/Vimeo embed or custom video player
@@ -96,17 +83,17 @@ export function VideoDemo({ isDark }: VideoDemoProps) {
             </div>
 
             {/* Bottom info bar */}
-            <div className={`border-t p-4 ${isDark ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50'}`}>
+            <div className="border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-4">
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                  <span className="text-slate-700 dark:text-slate-300">
                     <span className="font-semibold">2:15</span> duration
                   </span>
-                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>
+                  <span className="text-slate-600 dark:text-slate-400">
                     • Updated March 2026
                   </span>
                 </div>
-                <span className={`font-semibold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">
                   10,000+ views
                 </span>
               </div>
@@ -129,14 +116,12 @@ export function VideoDemo({ isDark }: VideoDemoProps) {
           ].map((item, index) => (
             <div
               key={index}
-              className={`rounded-lg border p-4 text-center ${
-                isDark ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-white'
-              }`}
+              className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-900/50"
             >
-              <p className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+              <p className="font-semibold text-slate-800 dark:text-slate-200">
                 {item.title}
               </p>
-              <p className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {item.description}
               </p>
             </div>
