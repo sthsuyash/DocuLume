@@ -1,14 +1,12 @@
+﻿import { useState } from 'react'
 import { Menu, Moon, Sun, X } from 'lucide-react'
-
 import { BrandLogo } from './BrandLogo'
 import { Button } from './ui/button'
+import { APP_URL } from '@/lib/config'
 
 type SiteHeaderProps = {
   isDark: boolean
-  mobileOpen: boolean
-  setMobileOpen: (value: boolean) => void
   onToggleTheme: () => void
-  appUrl: string
 }
 
 const navLinks = [
@@ -20,13 +18,11 @@ const navLinks = [
   { href: '/demo', label: 'Demo' },
 ]
 
-export function SiteHeader({ isDark, mobileOpen, setMobileOpen, onToggleTheme, appUrl }: SiteHeaderProps) {
-  const navbarTheme = isDark
-    ? 'border-slate-800/80 bg-slate-950/70 text-slate-200'
-    : 'border-slate-200/80 bg-white/80 text-slate-700'
+export function SiteHeader({ isDark, onToggleTheme }: SiteHeaderProps) {
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className={`sticky top-0 z-50 border-b backdrop-blur-md ${navbarTheme}`}>
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 text-slate-700 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/70 dark:text-slate-200">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="/" aria-label="DocuLume home">
           <BrandLogo />
@@ -45,11 +41,11 @@ export function SiteHeader({ isDark, mobileOpen, setMobileOpen, onToggleTheme, a
             variant="ghost"
             onClick={onToggleTheme}
             aria-label="Toggle theme"
-            className={isDark ? 'text-amber-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'}
+            className="text-slate-700 hover:bg-slate-100 dark:text-amber-300 dark:hover:bg-slate-800"
           >
             {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
-          <a href={appUrl}>
+          <a href={APP_URL}>
             <Button>Start free</Button>
           </a>
         </div>
@@ -65,7 +61,7 @@ export function SiteHeader({ isDark, mobileOpen, setMobileOpen, onToggleTheme, a
       </div>
 
       {mobileOpen && (
-        <div className={`border-t px-6 pb-5 pt-3 md:hidden ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+        <div className="border-t border-slate-200 px-6 pb-5 pt-3 dark:border-slate-800 md:hidden">
           <div className="flex flex-col gap-3">
             {navLinks.map((link) => (
               <a
@@ -82,12 +78,12 @@ export function SiteHeader({ isDark, mobileOpen, setMobileOpen, onToggleTheme, a
                 variant="ghost"
                 onClick={onToggleTheme}
                 aria-label="Toggle theme"
-                className={isDark ? 'text-amber-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'}
+                className="text-slate-700 hover:bg-slate-100 dark:text-amber-300 dark:hover:bg-slate-800"
               >
                 {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
                 {isDark ? 'Light mode' : 'Dark mode'}
               </Button>
-              <a href={appUrl} className="grow">
+              <a href={APP_URL} className="grow">
                 <Button className="w-full">Start free</Button>
               </a>
             </div>
