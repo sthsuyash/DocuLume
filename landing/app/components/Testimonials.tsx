@@ -18,7 +18,7 @@ const testimonials = [
     role: 'Legal Director',
     company: 'GlobalLaw Partners',
     avatar: 'MR',
-    quote: 'We process thousands of contracts monthly. DocuLume\'s AI helps our paralegals find relevant clauses instantly. ROI was evident within the first month.',
+    quote: "We process thousands of contracts monthly. DocuLume's AI helps our paralegals find relevant clauses instantly. ROI was evident within the first month.",
     rating: 5,
   },
   {
@@ -55,13 +55,7 @@ const testimonials = [
   },
 ]
 
-interface TestimonialsProps {
-  isDark: boolean
-}
-
-export function Testimonials({ isDark }: TestimonialsProps) {
-  const cardBase = isDark ? 'border-slate-800 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900'
-
+export function Testimonials() {
   return (
     <section id="testimonials" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-12 md:py-16">
       <div className="mb-10 text-center">
@@ -72,7 +66,7 @@ export function Testimonials({ isDark }: TestimonialsProps) {
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Trusted by high-velocity teams</h2>
-          <p className={`mt-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          <p className="mt-3 text-slate-600 dark:text-slate-400">
             See how leading companies use DocuLume to transform their document workflows.
           </p>
         </motion.div>
@@ -87,29 +81,24 @@ export function Testimonials({ isDark }: TestimonialsProps) {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
           >
-            <Card className={`${cardBase} h-full`}>
+            <Card className="h-full border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
               <CardContent className="p-6">
-                <Quote className={`mb-4 size-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-
-                <p className={`mb-4 text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <Quote className="mb-4 size-8 text-blue-600 dark:text-blue-400" />
+                <p className="mb-4 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                   "{testimonial.quote}"
                 </p>
-
                 <div className="mb-3 flex gap-1">
                   {Array.from({ length: testimonial.rating }).map((_, i) => (
                     <Star key={i} className="size-4 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
-
                 <div className="flex items-center gap-3">
-                  <div className={`flex size-10 items-center justify-center rounded-full font-semibold ${
-                    isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                  }`}>
+                  <div className="flex size-10 items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                     {testimonial.avatar}
                   </div>
                   <div>
-                    <p className="font-semibold text-sm">{testimonial.name}</p>
-                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <p className="text-sm font-semibold">{testimonial.name}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
                       {testimonial.role}, {testimonial.company}
                     </p>
                   </div>

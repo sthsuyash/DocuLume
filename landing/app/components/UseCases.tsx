@@ -49,15 +49,9 @@ const useCases = [
   },
 ]
 
-interface UseCasesProps {
-  isDark: boolean
-}
-
-export function UseCases({ isDark }: UseCasesProps) {
-  const cardBase = isDark ? 'border-slate-800 bg-slate-900/50 text-slate-100' : 'border-slate-200 bg-white text-slate-900'
-
+export function UseCases() {
   return (
-    <section id="use-cases" className={`scroll-mt-24 py-16 md:py-20 ${isDark ? 'bg-slate-950/50' : 'bg-slate-50/50'}`}>
+    <section id="use-cases" className="scroll-mt-24 py-16 md:py-20 bg-slate-50/50 dark:bg-slate-950/50">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mb-12 text-center">
           <motion.div
@@ -67,8 +61,8 @@ export function UseCases({ isDark }: UseCasesProps) {
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Built for every team</h2>
-            <p className={`mt-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              From support to legal to engineering - DocuLume adapts to your workflow.
+            <p className="mt-3 text-slate-600 dark:text-slate-400">
+              From support to legal to engineering — DocuLume adapts to your workflow.
             </p>
           </motion.div>
         </div>
@@ -76,7 +70,6 @@ export function UseCases({ isDark }: UseCasesProps) {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {useCases.map((useCase, index) => {
             const Icon = useCase.icon
-
             return (
               <motion.div
                 key={useCase.title}
@@ -85,23 +78,16 @@ export function UseCases({ isDark }: UseCasesProps) {
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
               >
-                <Card className={`${cardBase} h-full transition-all duration-300 hover:border-blue-500/50 hover:shadow-lg`}>
+                <Card className="h-full border-slate-200 bg-white text-slate-900 transition-all duration-300 hover:border-blue-500/50 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-100">
                   <CardHeader>
-                    <div className={`mb-3 inline-flex size-12 items-center justify-center rounded-xl ${
-                      isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-700'
-                    }`}>
+                    <div className="mb-3 inline-flex size-12 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
                       <Icon className="size-6" />
                     </div>
-                    <CardTitle className="flex items-center justify-between">
-                      {useCase.title}
-                    </CardTitle>
+                    <CardTitle>{useCase.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className={`mb-4 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {useCase.description}
-                    </p>
-
-                    <ul className={`mb-4 space-y-2 text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">{useCase.description}</p>
+                    <ul className="mb-4 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                       {useCase.benefits.map((benefit, i) => (
                         <li key={i} className="flex items-start gap-2">
                           <span className="mt-1 size-1.5 shrink-0 rounded-full bg-blue-500" />
@@ -109,10 +95,7 @@ export function UseCases({ isDark }: UseCasesProps) {
                         </li>
                       ))}
                     </ul>
-
-                    <div className={`rounded-lg px-3 py-2 text-center text-sm font-semibold ${
-                      isDark ? 'bg-slate-800 text-blue-400' : 'bg-blue-50 text-blue-700'
-                    }`}>
+                    <div className="rounded-lg bg-blue-50 px-3 py-2 text-center text-sm font-semibold text-blue-700 dark:bg-slate-800 dark:text-blue-400">
                       {useCase.stats}
                     </div>
                   </CardContent>
