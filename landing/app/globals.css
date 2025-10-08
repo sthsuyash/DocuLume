@@ -16,6 +16,30 @@ input:disabled {
 	cursor: not-allowed;
 }
 
+/* Hero dot-grid backgrounds */
+.hero-grid-light {
+	background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+	background-size: 28px 28px;
+	mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%);
+}
+
+.hero-grid-dark {
+	background-image: radial-gradient(circle, rgba(71, 85, 105, 0.4) 1px, transparent 1px);
+	background-size: 28px 28px;
+	mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%);
+}
+
+/* Blinking text cursor in product mockup */
+@keyframes blink-cursor {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0; }
+}
+
+.cursor-blink {
+	animation: blink-cursor 1s ease-in-out infinite;
+}
+
+/* Scroll-reveal animations */
 @keyframes fade-up {
 	from {
 		opacity: 0;
@@ -84,7 +108,8 @@ input:disabled {
 	.fade-up,
 	.slide-in-left,
 	.slide-in-right,
-	.scale-in {
+	.scale-in,
+	.cursor-blink {
 		animation: none;
 	}
 }
