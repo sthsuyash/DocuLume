@@ -1,16 +1,17 @@
-"use client"
+﻿"use client"
 
-import { useLandingTheme } from '../lib/useLandingTheme'
-import { SiteHeader } from '../components/SiteHeader'
-import { SiteFooter } from '../components/SiteFooter'
-import { ExpandedFeatures } from '../components/ExpandedFeatures'
+import { useTheme } from '@/lib/useTheme'
+import { SiteHeader } from '@/components/SiteHeader'
+import { SiteFooter } from '@/components/SiteFooter'
+import { ExpandedFeatures } from '@/components/ExpandedFeatures'
 import { ArrowLeft, Zap, Shield, Database, Cloud, Sparkles, Lock } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { APP_URL } from '@/lib/config'
 
 export default function FeaturesPage() {
-  const { mobileOpen, setMobileOpen, isDark, setIsDark, appUrl } = useLandingTheme()
+  const { isDark, toggle } = useTheme()
 
   const detailedFeatures = [
     {
@@ -76,19 +77,12 @@ export default function FeaturesPage() {
   ]
 
   return (
-    <main className={`min-h-screen transition-colors ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <SiteHeader
-        isDark={isDark}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        onToggleTheme={() => setIsDark((prev) => !prev)}
-        appUrl={appUrl}
-      />
+    <main className="min-h-screen transition-colors bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <SiteHeader isDark={isDark} onToggleTheme={toggle} />
 
-      {/* Hero */}
       <section className="relative overflow-hidden py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <Link href="/" className={`mb-6 inline-flex items-center gap-2 text-sm ${isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-600 hover:text-slate-900'}`}>
+          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300">
             <ArrowLeft className="size-4" />
             Back to home
           </Link>
@@ -99,24 +93,22 @@ export default function FeaturesPage() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
-              Every feature you need.<br />Nothing you don't.
+              Every feature you need.<br />Nothing you don&apos;t.
             </h1>
-            <p className={`mt-6 max-w-2xl text-lg ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className="mt-6 max-w-2xl text-lg text-slate-600 dark:text-slate-400">
               Production-ready RAG platform with enterprise security, multi-model support, and developer-friendly APIs. Built for teams that ship fast.
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* Overview Grid */}
-      <ExpandedFeatures isDark={isDark} />
+      <ExpandedFeatures />
 
-      {/* Detailed Feature Categories */}
       <section className="py-16">
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Deep dive into features</h2>
-            <p className={`mt-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className="mt-3 text-slate-600 dark:text-slate-400">
               Comprehensive capabilities across every layer of the stack
             </p>
           </div>
@@ -132,10 +124,10 @@ export default function FeaturesPage() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: idx * 0.1 }}
                 >
-                  <Card className={isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}>
+                  <Card className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                     <CardHeader>
                       <div className="flex items-center gap-3">
-                        <div className={`flex size-10 items-center justify-center rounded-lg ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-700'}`}>
+                        <div className="flex size-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
                           <Icon className="size-5" />
                         </div>
                         <CardTitle className="text-xl">{category.category}</CardTitle>
@@ -144,9 +136,9 @@ export default function FeaturesPage() {
                     <CardContent>
                       <div className="grid gap-4 md:grid-cols-2">
                         {category.features.map((feature) => (
-                          <div key={feature.name} className={`rounded-lg border p-4 ${isDark ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50'}`}>
-                            <h4 className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{feature.name}</h4>
-                            <p className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{feature.desc}</p>
+                          <div key={feature.name} className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+                            <h4 className="font-semibold text-slate-900 dark:text-slate-200">{feature.name}</h4>
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{feature.desc}</p>
                           </div>
                         ))}
                       </div>
@@ -159,15 +151,14 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className={`py-20 ${isDark ? 'bg-slate-900/50' : 'bg-slate-100'}`}>
+      <section className="py-20 bg-slate-100 dark:bg-slate-900/50">
         <div className="mx-auto max-w-4xl px-6 text-center">
           <h2 className="text-3xl font-semibold">Ready to experience the difference?</h2>
-          <p className={`mt-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">
             Start your free trial today. No credit card required.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href={appUrl}>
+            <a href={APP_URL}>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -177,7 +168,7 @@ export default function FeaturesPage() {
               </motion.button>
             </a>
             <Link href="/contact">
-              <button className={`rounded-lg px-8 py-3 font-semibold ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-white text-slate-900 hover:bg-slate-50'}`}>
+              <button className="rounded-lg bg-white px-8 py-3 font-semibold text-slate-900 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
                 Talk to Sales
               </button>
             </Link>
@@ -185,7 +176,7 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <SiteFooter isDark={isDark} />
+      <SiteFooter />
     </main>
   )
 }
