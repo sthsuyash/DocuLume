@@ -1,17 +1,17 @@
-"use client"
+﻿"use client"
 
-import { useLandingTheme } from '../lib/useLandingTheme'
-import { SiteHeader } from '../components/SiteHeader'
-import { SiteFooter } from '../components/SiteFooter'
-import { TrustBadges } from '../components/TrustBadges'
-import { Comparison } from '../components/Comparison'
+import { useTheme } from '@/lib/useTheme'
+import { SiteHeader } from '@/components/SiteHeader'
+import { SiteFooter } from '@/components/SiteFooter'
+import { TrustBadges } from '@/components/TrustBadges'
+import { Comparison } from '@/components/Comparison'
 import { ArrowLeft, Shield, Lock, Eye, Database, Server, FileCheck } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function SecurityPage() {
-  const { mobileOpen, setMobileOpen, isDark, setIsDark, appUrl } = useLandingTheme()
+  const { isDark, toggle } = useTheme()
 
   const securityFeatures = [
     {
@@ -77,18 +77,12 @@ export default function SecurityPage() {
   ]
 
   return (
-    <main className={`min-h-screen transition-colors ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <SiteHeader
-        isDark={isDark}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        onToggleTheme={() => setIsDark((prev) => !prev)}
-        appUrl={appUrl}
-      />
+    <main className="min-h-screen transition-colors bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <SiteHeader isDark={isDark} onToggleTheme={toggle} />
 
       <section className="relative overflow-hidden py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <Link href="/" className={`mb-6 inline-flex items-center gap-2 text-sm ${isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-600 hover:text-slate-900'}`}>
+          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300">
             <ArrowLeft className="size-4" />
             Back to home
           </Link>
@@ -101,14 +95,14 @@ export default function SecurityPage() {
             <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
               Enterprise-grade security
             </h1>
-            <p className={`mt-6 max-w-2xl text-lg ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className="mt-6 max-w-2xl text-lg text-slate-600 dark:text-slate-400">
               Your data security is our top priority. DocuLume is built with multiple layers of protection to keep your documents safe.
             </p>
           </motion.div>
         </div>
       </section>
 
-      <TrustBadges isDark={isDark} />
+      <TrustBadges />
 
       <section className="py-16">
         <div className="mx-auto max-w-6xl px-6">
@@ -123,9 +117,9 @@ export default function SecurityPage() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: idx * 0.1 }}
                 >
-                  <Card className={`h-full ${isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                  <Card className="h-full border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                     <CardHeader>
-                      <div className={`mb-3 inline-flex size-12 items-center justify-center rounded-lg ${isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700'}`}>
+                      <div className="mb-3 inline-flex size-12 items-center justify-center rounded-lg bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400">
                         <Icon className="size-6" />
                       </div>
                       <CardTitle>{feature.title}</CardTitle>
@@ -133,7 +127,7 @@ export default function SecurityPage() {
                     <CardContent>
                       <ul className="space-y-2">
                         {feature.items.map((item, i) => (
-                          <li key={i} className={`flex items-start gap-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                          <li key={i} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
                             <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-green-500" />
                             {item}
                           </li>
@@ -148,9 +142,9 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      <Comparison isDark={isDark} />
+      <Comparison />
 
-      <SiteFooter isDark={isDark} />
+      <SiteFooter />
     </main>
   )
 }
