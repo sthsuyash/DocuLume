@@ -1,21 +1,20 @@
-"use client"
+﻿"use client"
 
-import { useLandingTheme } from '../../lib/useLandingTheme'
-import { SiteHeader } from '../../components/SiteHeader'
-import { SiteFooter } from '../../components/SiteFooter'
-import { Card, CardContent } from '../../components/ui/card'
+import { useTheme } from '@/lib/useTheme'
+import { SiteHeader } from '@/components/SiteHeader'
+import { SiteFooter } from '@/components/SiteFooter'
+import { Card, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Play, Clock, Video } from 'lucide-react'
 import Link from 'next/link'
 
 export default function VideosPage() {
-  const { mobileOpen, setMobileOpen, isDark, setIsDark, appUrl } = useLandingTheme()
+  const { isDark, toggle } = useTheme()
 
   const videos = [
     {
       title: 'Getting Started with DocuLume',
       description: 'Complete walkthrough from account creation to your first conversation',
       duration: '5:30',
-      thumbnail: '/videos/thumbnails/getting-started.jpg',
       level: 'Beginner',
       topics: ['Account Setup', 'First Upload', 'First Chat']
     },
@@ -23,7 +22,6 @@ export default function VideosPage() {
       title: 'Uploading and Managing Documents',
       description: 'Learn best practices for document upload, organization, and management',
       duration: '8:15',
-      thumbnail: '/videos/thumbnails/upload-docs.jpg',
       level: 'Beginner',
       topics: ['File Formats', 'Batch Upload', 'Organization']
     },
@@ -31,7 +29,6 @@ export default function VideosPage() {
       title: 'Mastering Chat: Tips for Better Answers',
       description: 'Advanced techniques for getting accurate, relevant answers from your documents',
       duration: '10:20',
-      thumbnail: '/videos/thumbnails/master-chat.jpg',
       level: 'Intermediate',
       topics: ['Question Techniques', 'RAG Mode', 'Source Citations']
     },
@@ -39,7 +36,6 @@ export default function VideosPage() {
       title: 'Configuring LLM Providers',
       description: 'Complete guide to setting up OpenAI, Anthropic, Google, and Ollama',
       duration: '12:45',
-      thumbnail: '/videos/thumbnails/llm-config.jpg',
       level: 'Intermediate',
       topics: ['Cloud Providers', 'Local LLMs', 'Fallback Setup']
     },
@@ -47,7 +43,6 @@ export default function VideosPage() {
       title: 'Using Ollama for Local LLMs',
       description: 'Step-by-step guide to installing Ollama and using local models',
       duration: '9:30',
-      thumbnail: '/videos/thumbnails/ollama.jpg',
       level: 'Intermediate',
       topics: ['Ollama Installation', 'Model Selection', 'Performance Tips']
     },
@@ -55,7 +50,6 @@ export default function VideosPage() {
       title: 'API Integration Tutorial',
       description: 'Integrate DocuLume into your applications using the REST API',
       duration: '15:00',
-      thumbnail: '/videos/thumbnails/api.jpg',
       level: 'Advanced',
       topics: ['Authentication', 'API Endpoints', 'Code Examples']
     },
@@ -63,7 +57,6 @@ export default function VideosPage() {
       title: 'Self-Hosting DocuLume',
       description: 'Deploy DocuLume on your own infrastructure with Docker and Kubernetes',
       duration: '18:20',
-      thumbnail: '/videos/thumbnails/self-host.jpg',
       level: 'Advanced',
       topics: ['Docker Setup', 'Kubernetes', 'Configuration']
     },
@@ -71,7 +64,6 @@ export default function VideosPage() {
       title: 'Admin Panel Walkthrough',
       description: 'Managing users, documents, and monitoring your DocuLume instance',
       duration: '11:40',
-      thumbnail: '/videos/thumbnails/admin.jpg',
       level: 'Advanced',
       topics: ['User Management', 'Analytics', 'Security Settings']
     }
@@ -99,50 +91,39 @@ export default function VideosPage() {
   ]
 
   return (
-    <main className={`min-h-screen transition-colors ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <SiteHeader
-        isDark={isDark}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        onToggleTheme={() => setIsDark((prev) => !prev)}
-        appUrl={appUrl}
-      />
+    <main className="min-h-screen transition-colors bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <SiteHeader isDark={isDark} onToggleTheme={toggle} />
 
       <section className="py-12">
         <div className="mx-auto max-w-6xl px-6">
-          <Link href="/docs" className={`mb-6 inline-flex items-center gap-2 text-sm ${isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-600 hover:text-slate-900'}`}>
+          <Link href="/docs" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300">
             <ArrowLeft className="size-4" />
             Back to documentation
           </Link>
 
           <div className="mb-12">
-            <h1 className="text-4xl font-bold tracking-tight md:text-5xl flex items-center gap-3">
+            <h1 className="flex items-center gap-3 text-4xl font-bold tracking-tight md:text-5xl">
               <Video className="size-10" />
               Video Tutorials
             </h1>
-            <p className={`mt-4 text-lg ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
               Learn DocuLume through step-by-step video guides
             </p>
           </div>
 
-          {/* Playlists */}
           <div className="mb-12">
-            <h2 className="text-2xl font-semibold mb-6">Learning Paths</h2>
+            <h2 className="mb-6 text-2xl font-semibold">Learning Paths</h2>
             <div className="grid gap-6 md:grid-cols-3">
               {playlists.map((playlist) => (
-                <Card key={playlist.name} className={`${isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'} hover:shadow-lg transition-shadow cursor-pointer`}>
+                <Card key={playlist.name} className="cursor-pointer border-slate-200 bg-white transition-shadow hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
                   <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold mb-2">{playlist.name}</h3>
-                    <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <h3 className="mb-2 text-lg font-semibold">{playlist.name}</h3>
+                    <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
                       {playlist.description}
                     </p>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className={isDark ? 'text-slate-500' : 'text-slate-500'}>
-                        {playlist.videos} videos
-                      </span>
-                      <span className={isDark ? 'text-slate-500' : 'text-slate-500'}>
-                        {playlist.duration}
-                      </span>
+                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                      <span>{playlist.videos} videos</span>
+                      <span>{playlist.duration}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -150,20 +131,18 @@ export default function VideosPage() {
             </div>
           </div>
 
-          {/* Video Grid */}
           <div className="mb-12">
-            <h2 className="text-2xl font-semibold mb-6">All Videos</h2>
+            <h2 className="mb-6 text-2xl font-semibold">All Videos</h2>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {videos.map((video) => (
-                <Card key={video.title} className={`${isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'} hover:shadow-lg transition-shadow cursor-pointer overflow-hidden`}>
-                  {/* Thumbnail */}
-                  <div className="relative aspect-video bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+                <Card key={video.title} className="cursor-pointer overflow-hidden border-slate-200 bg-white transition-shadow hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
+                  <div className="relative flex aspect-video items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600">
                     <Play className="size-16 text-white opacity-80" />
-                    <div className="absolute bottom-2 right-2 bg-black/80 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/80 px-2 py-1 text-xs text-white">
                       <Clock className="size-3" />
                       {video.duration}
                     </div>
-                    <div className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-semibold ${
+                    <div className={`absolute left-2 top-2 rounded px-2 py-1 text-xs font-semibold ${
                       video.level === 'Beginner' ? 'bg-green-600 text-white' :
                       video.level === 'Intermediate' ? 'bg-yellow-600 text-white' :
                       'bg-red-600 text-white'
@@ -173,15 +152,15 @@ export default function VideosPage() {
                   </div>
 
                   <CardContent className="p-4">
-                    <h3 className="font-semibold mb-2 line-clamp-2">{video.title}</h3>
-                    <p className={`text-sm mb-3 line-clamp-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <h3 className="mb-2 line-clamp-2 font-semibold">{video.title}</h3>
+                    <p className="mb-3 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
                       {video.description}
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {video.topics.map((topic) => (
                         <span
                           key={topic}
-                          className={`text-xs px-2 py-1 rounded ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'}`}
+                          className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                         >
                           {topic}
                         </span>
@@ -193,35 +172,33 @@ export default function VideosPage() {
             </div>
           </div>
 
-          {/* Coming Soon */}
-          <Card className={`${isDark ? 'border-purple-800 bg-purple-900/20' : 'border-purple-200 bg-purple-50'}`}>
+          <Card className="border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-900/20">
             <CardContent className="p-6">
-              <h2 className="text-2xl font-semibold mb-4">More Videos Coming Soon!</h2>
-              <p className={`mb-4 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                We're constantly creating new video tutorials. Subscribe to our YouTube channel to get notified:
+              <h2 className="mb-4 text-2xl font-semibold">More Videos Coming Soon!</h2>
+              <p className="mb-4 text-slate-700 dark:text-slate-300">
+                {"We're constantly creating new video tutorials. Subscribe to our YouTube channel to get notified:"}
               </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button className="inline-flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                  <Play className="size-5 mr-2" />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button className="inline-flex items-center justify-center rounded-lg bg-red-600 px-6 py-3 text-white transition-colors hover:bg-red-700">
+                  <Play className="mr-2 size-5" />
                   Subscribe on YouTube
                 </button>
-                <Link href="/docs" className={`inline-flex items-center justify-center px-6 py-3 rounded-lg transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-white text-slate-900 hover:bg-slate-50'}`}>
+                <Link href="/docs" className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-slate-900 transition-colors hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
                   Browse Text Docs
                 </Link>
               </div>
             </CardContent>
           </Card>
 
-          {/* Note */}
-          <div className={`mt-8 p-4 rounded-lg ${isDark ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-slate-200'}`}>
-            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          <div className="mt-8 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               <strong>Note:</strong> Videos are placeholders for demonstration purposes. In production, these would link to actual video content on YouTube or a video hosting platform.
             </p>
           </div>
         </div>
       </section>
 
-      <SiteFooter isDark={isDark} />
+      <SiteFooter />
     </main>
   )
 }

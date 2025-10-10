@@ -1,14 +1,14 @@
-"use client"
+﻿"use client"
 
-import { useLandingTheme } from '../../../lib/useLandingTheme'
-import { SiteHeader } from '../../../components/SiteHeader'
-import { SiteFooter } from '../../../components/SiteFooter'
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
+import { useTheme } from '@/lib/useTheme'
+import { SiteHeader } from '@/components/SiteHeader'
+import { SiteFooter } from '@/components/SiteFooter'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Cloud, Server, Zap } from 'lucide-react'
 import Link from 'next/link'
 
 export default function LLMConfigPage() {
-  const { mobileOpen, setMobileOpen, isDark, setIsDark, appUrl } = useLandingTheme()
+  const { isDark, toggle } = useTheme()
 
   const providers = [
     {
@@ -117,18 +117,12 @@ llm.client.base_url = "http://localhost:11434/v1"`,
   ]
 
   return (
-    <main className={`min-h-screen transition-colors ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <SiteHeader
-        isDark={isDark}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        onToggleTheme={() => setIsDark((prev) => !prev)}
-        appUrl={appUrl}
-      />
+    <main className="min-h-screen transition-colors bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <SiteHeader isDark={isDark} onToggleTheme={toggle} />
 
       <section className="py-12">
         <div className="mx-auto max-w-6xl px-6">
-          <Link href="/docs" className={`mb-6 inline-flex items-center gap-2 text-sm ${isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-600 hover:text-slate-900'}`}>
+          <Link href="/docs" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-300">
             <ArrowLeft className="size-4" />
             Back to documentation
           </Link>
@@ -136,18 +130,17 @@ llm.client.base_url = "http://localhost:11434/v1"`,
           <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
             LLM Configuration
           </h1>
-          <p className={`mt-4 text-lg ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
             Configure any LLM provider - cloud or local
           </p>
 
-          {/* Overview */}
-          <Card className={`mt-8 ${isDark ? 'border-blue-800 bg-blue-900/20' : 'border-blue-200 bg-blue-50'}`}>
+          <Card className="mt-8 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
             <CardContent className="p-6">
               <div className="flex items-start gap-3">
                 <Zap className="size-6 shrink-0 text-blue-500" />
                 <div>
                   <h3 className="text-lg font-semibold">Multi-Provider Support</h3>
-                  <p className={`mt-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <p className="mt-2 text-slate-700 dark:text-slate-300">
                     DocuLume supports OpenAI, Anthropic, Google, and local LLMs. You can switch between providers anytime without data migration.
                   </p>
                 </div>
@@ -155,20 +148,19 @@ llm.client.base_url = "http://localhost:11434/v1"`,
             </CardContent>
           </Card>
 
-          {/* Providers */}
           <div className="mt-12 space-y-8">
             {providers.map((provider) => {
               const Icon = provider.icon
               return (
-                <Card key={provider.name} className={isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}>
+                <Card key={provider.name} className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                   <CardHeader>
                     <div className="flex items-center gap-3">
-                      <div className={`flex size-12 items-center justify-center rounded-xl ${isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-700'}`}>
+                      <div className="flex size-12 items-center justify-center rounded-xl bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400">
                         <Icon className="size-6" />
                       </div>
                       <div>
                         <CardTitle className="text-2xl">{provider.name}</CardTitle>
-                        <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
                           Models: {provider.models.join(', ')}
                         </p>
                       </div>
@@ -176,15 +168,15 @@ llm.client.base_url = "http://localhost:11434/v1"`,
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <h4 className="font-semibold mb-2">Setup Instructions:</h4>
-                      <pre className={`overflow-x-auto rounded-lg p-4 text-sm ${isDark ? 'bg-slate-950 text-slate-300' : 'bg-slate-100 text-slate-800'}`}>
+                      <h4 className="mb-2 font-semibold">Setup Instructions:</h4>
+                      <pre className="overflow-x-auto rounded-lg bg-slate-100 p-4 text-sm text-slate-800 dark:bg-slate-950 dark:text-slate-300">
                         <code>{provider.setup}</code>
                       </pre>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold mb-2">Code Example:</h4>
-                      <pre className={`overflow-x-auto rounded-lg p-4 text-sm ${isDark ? 'bg-slate-950 text-slate-300' : 'bg-slate-100 text-slate-800'}`}>
+                      <h4 className="mb-2 font-semibold">Code Example:</h4>
+                      <pre className="overflow-x-auto rounded-lg bg-slate-100 p-4 text-sm text-slate-800 dark:bg-slate-950 dark:text-slate-300">
                         <code>{provider.code}</code>
                       </pre>
                     </div>
@@ -194,12 +186,11 @@ llm.client.base_url = "http://localhost:11434/v1"`,
             })}
           </div>
 
-          {/* Comparison Table */}
           <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-6">Provider Comparison</h2>
+            <h2 className="mb-6 text-2xl font-semibold">Provider Comparison</h2>
             <div className="overflow-x-auto">
-              <table className={`w-full rounded-lg ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
-                <thead className={isDark ? 'border-b border-slate-800' : 'border-b border-slate-200'}>
+              <table className="w-full rounded-lg bg-white dark:bg-slate-900">
+                <thead className="border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="p-4 text-left">Provider</th>
                     <th className="p-4 text-left">Speed</th>
@@ -208,7 +199,7 @@ llm.client.base_url = "http://localhost:11434/v1"`,
                     <th className="p-4 text-left">Privacy</th>
                   </tr>
                 </thead>
-                <tbody className={isDark ? 'divide-y divide-slate-800' : 'divide-y divide-slate-200'}>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   <tr>
                     <td className="p-4">OpenAI GPT-4</td>
                     <td className="p-4">⚡⚡</td>
@@ -242,11 +233,10 @@ llm.client.base_url = "http://localhost:11434/v1"`,
             </div>
           </div>
 
-          {/* Next Steps */}
-          <Card className={`mt-12 ${isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+          <Card className="mt-12 border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Next Steps</h3>
-              <ul className={`space-y-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <h3 className="mb-4 text-lg font-semibold">Next Steps</h3>
+              <ul className="space-y-2 text-slate-700 dark:text-slate-300">
                 <li>• <Link href="/docs/quick-start" className="text-blue-500 hover:underline">Complete the quick start guide</Link></li>
                 <li>• <Link href="/docs/api" className="text-blue-500 hover:underline">Explore the API reference</Link></li>
                 <li>• <Link href="/docs/dev/self-host" className="text-blue-500 hover:underline">Learn about self-hosting</Link></li>
@@ -256,7 +246,7 @@ llm.client.base_url = "http://localhost:11434/v1"`,
         </div>
       </section>
 
-      <SiteFooter isDark={isDark} />
+      <SiteFooter />
     </main>
   )
 }
