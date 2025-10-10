@@ -1,14 +1,15 @@
-"use client"
+﻿"use client"
 
-import { useLandingTheme } from '../../../lib/useLandingTheme'
-import { SiteHeader } from '../../../components/SiteHeader'
-import { SiteFooter } from '../../../components/SiteFooter'
-import { Card, CardContent } from '../../../components/ui/card'
+import { useTheme } from '@/lib/useTheme'
+import { APP_URL } from '@/lib/config'
+import { SiteHeader } from '@/components/SiteHeader'
+import { SiteFooter } from '@/components/SiteFooter'
+import { Card, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Bot, MessageCircle, Sparkles, HelpCircle, Zap, Book } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DocuBotHelpPage() {
-  const { mobileOpen, setMobileOpen, isDark, setIsDark, appUrl } = useLandingTheme()
+  const { isDark, toggle } = useTheme()
 
   const features = [
     {
@@ -85,14 +86,8 @@ export default function DocuBotHelpPage() {
   ]
 
   return (
-    <main className={`min-h-screen transition-colors ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <SiteHeader
-        isDark={isDark}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        onToggleTheme={() => setIsDark((prev) => !prev)}
-        appUrl={appUrl}
-      />
+    <main className="min-h-screen transition-colors bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <SiteHeader isDark={isDark} onToggleTheme={toggle} />
 
       <section className="py-12">
         <div className="mx-auto max-w-4xl px-6">
@@ -410,7 +405,7 @@ fetch('/api/v1/help/ask', {
               <p className={`mb-4 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                 Log in to your account and click the Help icon to start chatting with DocuBot!
               </p>
-              <a href={appUrl} className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <a href={APP_URL} className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 Go to App
               </a>
             </CardContent>
@@ -418,7 +413,7 @@ fetch('/api/v1/help/ask', {
         </div>
       </section>
 
-      <SiteFooter isDark={isDark} />
+      <SiteFooter />
     </main>
   )
 }

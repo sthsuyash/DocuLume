@@ -1,14 +1,14 @@
-"use client"
+﻿"use client"
 
-import { useLandingTheme } from '../../../lib/useLandingTheme'
-import { SiteHeader } from '../../../components/SiteHeader'
-import { SiteFooter } from '../../../components/SiteFooter'
-import { Card, CardContent } from '../../../components/ui/card'
+import { useTheme } from '@/lib/useTheme'
+import { SiteHeader } from '@/components/SiteHeader'
+import { SiteFooter } from '@/components/SiteFooter'
+import { Card, CardContent } from '@/components/ui/card'
 import { ArrowLeft, MessageSquare, Sparkles, BookOpen, Lightbulb } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ChatPage() {
-  const { mobileOpen, setMobileOpen, isDark, setIsDark, appUrl } = useLandingTheme()
+  const { isDark, toggle } = useTheme()
 
   const questionTypes = [
     {
@@ -71,14 +71,8 @@ export default function ChatPage() {
   ]
 
   return (
-    <main className={`min-h-screen transition-colors ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <SiteHeader
-        isDark={isDark}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        onToggleTheme={() => setIsDark((prev) => !prev)}
-        appUrl={appUrl}
-      />
+    <main className="min-h-screen transition-colors bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <SiteHeader isDark={isDark} onToggleTheme={toggle} />
 
       <section className="py-12">
         <div className="mx-auto max-w-4xl px-6">
@@ -275,7 +269,7 @@ export default function ChatPage() {
         </div>
       </section>
 
-      <SiteFooter isDark={isDark} />
+      <SiteFooter />
     </main>
   )
 }
