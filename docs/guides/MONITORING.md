@@ -4,106 +4,134 @@ Operational monitoring and observability reference for DocuLume.
 
 ## Scope
 
-This guide covers:
+- Application metrics and health endpoints
+- Prometheus scraping and alert rules
+- Grafana dashboards
+- Sentry error tracking
+- Structured audit logging
+- Runbooks for common alerts
 
-- Application metrics endpoints
-- Logging and request correlation
-- Prometheus and Grafana deployment
-- Alerting baseline
-- Operational troubleshooting
+## Setup
 
-## Local Monitoring Setup
-
-### Profile-Based Startup
+### Start the monitoring stack
 
 ```bash
-docker compose up -d
+# Profile-based (alongside core services)
 docker compose --profile monitoring up -d
-```
 
-### Dedicated Monitoring Compose File
-
-```bash
+# Or dedicated compose file
 docker compose -f docker/compose/docker-compose.monitoring.yml up -d
 ```
 
-## Access Endpoints
+`GRAFANA_ADMIN_PASSWORD` must be set in `.env` — startup fails if it is missing.
 
-- App metrics: <http://localhost:8000/api/v1/metrics>
-- Prometheus: <http://localhost:9090>
-- Grafana: <http://localhost:3002>
+### Access endpoints
 
-## Metrics Endpoints
+| Service     | URL                         |
+|-------------|-----------------------------|
+| Backend metrics | <http://localhost:8000/api/v1/metrics> |
+| Prometheus  | <http://localhost:9090>      |
+| Grafana     | <http://localhost:3002>      |
 
-- `GET /api/v1/metrics`
-- `GET /api/v1/metrics/system`
-- `GET /api/v1/metrics/process`
-- `GET /api/v1/metrics/database`
-
-## Logging Standards
-
-- Use structured logging with request IDs.
-- Propagate correlation identifiers across service boundaries.
-- Avoid logging sensitive values, tokens, or keys.
-
-### Log Commands
+## Health Endpoints
 
 ```bash
-docker compose logs -f
-docker compose logs -f backend
-docker compose logs -f --tail=200 backend
-```
-
-## Prometheus Baseline
-
-Prometheus should scrape backend metrics and infrastructure exporters at fixed intervals (for example 15 seconds).
-
-## Grafana Baseline
-
-Recommended dashboards:
-
-- Node exporter host metrics
-- PostgreSQL metrics
-- Redis metrics
-- Request latency and error-rate panels
-
-## Alerting Baseline
-
-Implement alerts for:
-
-- Elevated 5xx response rate
-- High response latency (P95/P99)
-- Sustained CPU or memory pressure
-- Database connectivity degradation
-- Queue processing backlog
-
-## Health Verification
-
-```bash
+# Full dependency status (DB, Redis, Celery)
 curl http://localhost:8000/api/v1/health/detailed
+
+# Readiness probe (returns 200 or 503)
 curl http://localhost:8000/api/v1/health/ready
+
+# Liveness probe
 curl http://localhost:8000/api/v1/health/live
 ```
 
+## Metrics Endpoints
+
+- `GET /api/v1/metrics` — Prometheus-format application metrics
+- `GET /api/v1/metrics/system` — CPU, memory, disk
+- `GET /api/v1/metrics/process` — process-level stats
+- `GET /api/v1/metrics/database` — pool size, active connections
+
+## Alert Rules
+
+Alert rules are defined in `backend/prometheus-alerts.yml` and loaded automatically by Prometheus.
+
+| Alert | Condition | Runbook |
+|-------|-----------|---------|
+| `BackendDown` | Backend unreachable for 1 min | [service-down.md](../runbooks/service-down.md) |
+| `HighErrorRate` | >5% 5xx rate over 5 min | [high-error-rate.md](../runbooks/high-error-rate.md) |
+| `SlowResponses` | P95 latency >2s over 10 min | [high-error-rate.md](../runbooks/high-error-rate.md) |
+| `PostgresDown` | postgres-exporter unreachable for 1 min | [service-down.md](../runbooks/service-down.md) |
+| `DBConnectionPoolNearFull` | Pool utilisation >80% | [high-error-rate.md](../runbooks/high-error-rate.md) |
+| `RedisDown` | redis-exporter unreachable for 1 min | [service-down.md](../runbooks/service-down.md) |
+| `RedisHighMemory` | Redis memory >80% of `maxmemory` | [service-down.md](../runbooks/service-down.md) |
+| `HighCPU` | CPU >85% for 10 min | [high-error-rate.md](../runbooks/high-error-rate.md) |
+| `HighMemory` | Memory >85% for 10 min | [high-error-rate.md](../runbooks/high-error-rate.md) |
+| `DiskSpaceLow` | Disk >85% full | [database-recovery.md](../runbooks/database-recovery.md) |
+
+## Sentry Error Tracking
+
+Set `SENTRY_DSN` in `.env` to enable Sentry. It integrates with FastAPI, SQLAlchemy, Redis, and Celery automatically. PII transmission is disabled (`send_default_pii=False`).
+
+```bash
+SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project>
+```
+
+Sentry activates in any environment when the DSN is present — not limited to production.
+
+## Structured Audit Logging
+
+Security-relevant events are emitted to stdout as structured JSON under the `audit` logger. Events include:
+
+- `login_success`, `login_failure`, `logout`, `register`, `oauth_login`
+- `document_upload`, `document_delete`, `document_bulk_delete`
+- `admin_role_change`, `admin_user_delete`, `admin_document_delete`
+
+Each record contains `event`, `user_id`, `ip`, `timestamp`, and event-specific fields. Ship stdout to your log aggregator (e.g., Loki, CloudWatch, Datadog) to query and alert on these.
+
+## Logging Standards
+
+```bash
+# Stream all logs
+docker compose logs -f
+
+# Backend only
+docker compose logs -f --tail=200 backend
+
+# Filter for errors
+docker compose logs backend | grep '"level":"ERROR"'
+
+# Filter audit events
+docker compose logs backend | grep '"logger":"audit"'
+```
+
+## Recommended Grafana Dashboards
+
+- Node Exporter Full (host metrics)
+- PostgreSQL Database (postgres-exporter)
+- Redis Exporter Quickstart (redis-exporter)
+- Custom: request latency heatmap, error rate, Celery queue depth
+
 ## Troubleshooting
 
-### High Memory Usage
+### High memory usage
 
 ```bash
 curl http://localhost:8000/api/v1/metrics/process
 docker stats
 ```
 
-### Database Issues
+### Database issues
 
 ```bash
 curl http://localhost:8000/api/v1/metrics/database
 docker compose logs postgres
 ```
 
-### Redis Issues
+### Redis issues
 
 ```bash
 docker compose logs redis
-docker exec doculume-redis redis-cli PING
+docker compose exec redis redis-cli PING
 ```

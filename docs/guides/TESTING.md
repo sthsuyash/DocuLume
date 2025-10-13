@@ -30,22 +30,28 @@ uv run pytest --cov=app --cov-report=term-missing
 uv run pytest -n auto
 ```
 
+### Auth flow
+
+Tests use cookie-based authentication. The test client stores the `access_token` cookie automatically after calling `/api/v1/auth/login`. Do not look for `access_token` in the JSON response body.
+
+### MIME validation
+
+Document upload tests must use real magic bytes. Use `b"%PDF-1.4 ..."` with a `.pdf` filename — plain text bytes with a PDF extension will be rejected.
+
 ## Frontend Test Execution
 
 ```bash
 cd frontend
-
-# Unit/integration tests
 pnpm test
 
-# End-to-end tests
+# End-to-end
 pnpm test:e2e
 ```
 
 ## Coverage Baseline
 
-- Overall target: 80%+
-- Service layer target: 85%+
+- CI minimum: **70%** (enforced by `--cov-fail-under=70` in CI)
+- Service layer target: 80%+
 - Critical auth and document workflows: mandatory coverage
 
 ## CI Requirements
@@ -53,52 +59,65 @@ pnpm test:e2e
 Before merge:
 
 - Lint and type checks pass
-- Backend tests pass
-- Frontend tests pass
-- Coverage thresholds satisfied
+- Backend tests pass with ≥70% coverage
+- All three frontend apps build cleanly (`frontend`, `admin-frontend`, `landing`)
+- Security scans pass (Bandit, pip-audit)
 
-## Test Data and Mocking
-
-- Use deterministic fixtures and factories.
-- Mock external provider calls (LLM APIs and third-party services).
-- Do not use production API keys or production datasets in tests.
-
-## Security and Performance Testing
-
-### Security Scans
+## Security Scanning
 
 ```bash
 cd backend
+
+# Static analysis
 bandit -r app/
+
+# Dependency vulnerabilities (replaces `safety check` which requires a paid API key)
+pip-audit --requirement requirements.txt
+
+# Semgrep (optional)
 semgrep --config=auto app/
 ```
 
-### Performance Testing
+## Performance / Load Testing
+
+Load tests use [Locust](https://locust.io/):
 
 ```bash
 cd backend/tests/performance
-locust -f locustfile.py
+
+# Interactive UI at http://localhost:8089
+locust -f locustfile.py --host=http://localhost:8000
+
+# Headless (CI)
+locust -f locustfile.py --host=http://localhost:8000 \
+  --users=50 --spawn-rate=5 --run-time=2m --headless
 ```
+
+Two user classes are defined:
+- `UnauthenticatedUser` (weight 2) — health check traffic
+- `AuthenticatedUser` (weight 8) — full flow: register → login → list/search/upload documents → logout
+
+Each virtual user registers with a unique random email, so no pre-seeded accounts are required.
 
 ## Troubleshooting
 
-### Reinitialize Local Dependencies
+### Reinitialize local dependencies
 
 ```bash
 docker compose down -v
 docker compose up -d postgres redis
 ```
 
-### Slow Test Diagnostics
+### Slow test diagnostics
 
 ```bash
 uv run pytest --durations=10
 ```
 
-### Coverage Report Output
+### Coverage report output
 
 ```bash
 uv run pytest --cov=app --cov-report=html
 ```
 
-Open `htmlcov/index.html` for detailed report output.
+Open `htmlcov/index.html` for the detailed report.
