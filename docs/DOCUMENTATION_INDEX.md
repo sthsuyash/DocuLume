@@ -39,6 +39,21 @@
 - [Security configuration](./admin-guide/security.md)
 - [Monitoring and analytics](./admin-guide/monitoring.md)
 
+### Operational guides
+
+- [Deployment Guide](./guides/DEPLOYMENT.md)
+- [Monitoring Guide](./guides/MONITORING.md)
+- [Testing Guide](./guides/TESTING.md)
+- [Tracing Guide](./guides/TRACING.md)
+- [Contributing Guide](./guides/CONTRIBUTING.md)
+
+### Runbooks
+
+- [Service Down](./runbooks/service-down.md)
+- [High Error Rate](./runbooks/high-error-rate.md)
+- [Database Recovery](./runbooks/database-recovery.md)
+- [Deploy Rollback](./runbooks/deploy-rollback.md)
+
 ### Video tutorials
 
 Tutorial video resources are listed under the user guide where applicable.
@@ -46,4 +61,4 @@ Tutorial video resources are listed under the user guide where applicable.
 ---
 
 Latest version: 1.0.0
-Last updated: March 2026
+Last updated: June 2026

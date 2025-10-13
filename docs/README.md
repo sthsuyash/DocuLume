@@ -29,6 +29,13 @@ Governance reference: [Documentation Governance Standard](./DOCUMENTATION_GOVERN
 - [Backend Setup Guide](./backend/SETUP.md)
 - [Security Encryption Guide](./security/ENCRYPTION.md)
 
+## Runbooks
+
+- [Service Down](./runbooks/service-down.md)
+- [High Error Rate](./runbooks/high-error-rate.md)
+- [Database Recovery](./runbooks/database-recovery.md)
+- [Deploy Rollback](./runbooks/deploy-rollback.md)
+
 ## Component READMEs
 
 - [Backend README](../backend/README.md)

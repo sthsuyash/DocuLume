@@ -33,7 +33,7 @@ DocuLume is an enterprise-oriented Retrieval-Augmented Generation (RAG) platform
 
 ### High-Level Components
 
-- Frontend: Next.js 14 + TypeScript UI for authentication, document workflows, and chat interactions.
+- Frontend: Next.js 16 + TypeScript UI for authentication, document workflows, and chat interactions.
 - Backend: FastAPI services for auth, document processing, chat orchestration, and health operations.
 - Data services: PostgreSQL (system-of-record), Redis (cache and queue), ChromaDB (vector index).
 - Operations: optional monitoring and tracing stacks through Compose profiles or dedicated compose files.
@@ -108,10 +108,17 @@ docker compose -f docker/compose/docker-compose.tracing.yml up -d
 - Authentication and session controls:
   - JWT access/refresh model with rotation.
   - httpOnly cookies and CSRF token validation.
-  - Rate limiting and hardened CORS/security-header defaults.
+  - Rate limiting on HTTP and WebSocket connections; hardened CORS and security-header defaults.
 - Data protection controls:
   - API key encryption at rest via field-level encryption.
+  - Magic-byte MIME validation on all document uploads.
   - Input validation and ORM-based query safety patterns.
+  - Request size limits enforced before body parsing.
+- Observability and audit:
+  - Structured JSON audit log for all auth, document, and admin actions.
+  - Sentry error tracking with PII disabled.
+  - Prometheus metrics with alerting rules; Grafana dashboards.
+  - Daily automated PostgreSQL backups with configurable retention.
 
 Reference: [Security Encryption Guide](./docs/security/ENCRYPTION.md).
 
@@ -153,7 +160,13 @@ For deployment patterns, scaling, cloud targets, and production checklists, see 
 - [Backend README](./backend/README.md)
 - [Frontend README](./frontend/README.md)
 - [Landing README](./landing/README.md)
-- [Kubernetes README](./k8s/README.md)
+
+**Runbooks**
+
+- [Service Down](./docs/runbooks/service-down.md)
+- [High Error Rate](./docs/runbooks/high-error-rate.md)
+- [Database Recovery](./docs/runbooks/database-recovery.md)
+- [Deploy Rollback](./docs/runbooks/deploy-rollback.md)
 
 ## Contribution
 
