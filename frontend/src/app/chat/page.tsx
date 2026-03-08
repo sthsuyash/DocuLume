@@ -50,7 +50,7 @@ export default function ChatPage() {
   const { context, summarization, isConnected, error: wsError } = useContextWebSocket({
     conversationId: currentConversationId || 0,
     token: getAccessToken(),
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+    apiUrl: process.env.NEXT_PUBLIC_API_UR || 'http://localhost:8000/api/v1',
   });
 
   useEffect(() => {
