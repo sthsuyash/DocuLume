@@ -1,0 +1,42 @@
+{
+  "name": "doculume-landing",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4002",
+    "build": "next build",
+    "start": "next start -p 4002",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@docsearch/css": "^3.6.5",
+    "@docsearch/react": "^3.6.5",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.34.3",
+    "lucide-react": "^0.575.0",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/node": "^25.3.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.27",
+    "husky": "^9.1.7",
+    "postcss": "^8.5.6",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md,css}": "prettier --write"
+  }
+}

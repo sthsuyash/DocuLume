@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+html {
+	scroll-behavior: smooth;
+}
+
+a,
+button,
+[role='button'],
+input[type='submit'] {
+	cursor: pointer;
+}
+
+button:disabled,
+input:disabled {
+	cursor: not-allowed;
+}
+
+@keyframes fade-up {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.fade-up {
+	animation: fade-up 500ms ease-out both;
+}
+
+@keyframes slide-in-left {
+	from {
+		opacity: 0;
+		transform: translateX(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.slide-in-left {
+	animation: slide-in-left 600ms ease-out both;
+}
+
+@keyframes slide-in-right {
+	from {
+		opacity: 0;
+		transform: translateX(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.slide-in-right {
+	animation: slide-in-right 600ms ease-out both;
+}
+
+@keyframes scale-in {
+	from {
+		opacity: 0;
+		transform: scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+.scale-in {
+	animation: scale-in 400ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+
+	.fade-up,
+	.slide-in-left,
+	.slide-in-right,
+	.scale-in {
+		animation: none;
+	}
+}
