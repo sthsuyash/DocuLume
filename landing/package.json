@@ -1,6 +1,7 @@
 {
   "name": "doculume-landing",
   "version": "1.0.0",
+  "description": "DocuLume landing page - marketing and documentation site for the enterprise RAG platform",
   "private": true,
   "scripts": {
     "dev": "next dev -p 4002",
@@ -11,14 +12,14 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@docsearch/css": "^3.6.5",
-    "@docsearch/react": "^3.6.5",
+    "@docsearch/css": "^4.6.0",
+    "@docsearch/react": "^4.6.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-tabs": "^1.1.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.34.3",
-    "lucide-react": "^0.575.0",
+    "framer-motion": "^12.35.1",
+    "lucide-react": "^0.577.0",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -26,12 +27,12 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
-    "@types/node": "^25.3.3",
+    "@types/node": "^25.3.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.27",
     "husky": "^9.1.7",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.8",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3"
