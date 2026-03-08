@@ -1,205 +1,164 @@
-# Question Answering RAG System
+# DocuLume
 
-This project is a REST API for a Question Answering system using Retrieval-Augmented Generation (RAG) with OpenAI's language models. The system processes PDF documents, splits them into chunks, stores them in a vector store and allows users to ask questions based on the uploaded documents.
+DocuLume is an enterprise-oriented Retrieval-Augmented Generation (RAG) platform for document intelligence. It provides authenticated document ingestion, semantic retrieval, and conversational Q&A over private content using a FastAPI backend and Next.js frontend.
 
-A RAG(Retrieval-Augmented Generation) model is a transformer-based model that combines the benefits of retrieval-based and generation-based models. It uses a retriever to find relevant passages from a large corpus of documents and then generates an answer based on the retrieved passages.
+[![Backend CI](https://github.com/sthsuyash/doculume/workflows/Backend%20CI/badge.svg)](https://github.com/sthsuyash/doculume/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Table of Contents
+## Executive Summary
 
-- [Features](#features)
-- [Requirements](#requirements)
-- [Using Docker](#using-docker)
-- [Installation](#installation)
-- [Usage](#usage)
-- [API Endpoints](#api-endpoints)
-  - [Root Endpoint](#root-endpoint)
-  - [Upload PDF](#upload-pdf)
-  - [Ask Question](#ask-question)
-- [Postman Collection](#postman-collection)
-- [Project Structure](#project-structure)
-- [License](#license)
+- Purpose: secure, production-ready document Q&A for internal and customer-facing workflows.
+- Architecture: API-first backend with async processing, persistent storage, and vector retrieval.
+- Deployment model: local development, full Docker deployment, and cloud-hosted production patterns.
+- Security posture: token-based auth, CSRF protections, secure cookies, rate limiting, and encrypted API key storage.
 
-## Features
+## Core Capabilities
 
-- Upload PDF files and process them into document chunks.
-- Store document chunks in a vector store for efficient retrieval.
-- Ask questions based on the uploaded documents using a RAG approach.
-- Consistent JSON response format for all endpoints.
+### Application Capabilities
 
-## Requirements
+- Multi-format ingestion: PDF, TXT, DOCX, and Markdown.
+- Conversational Q&A with source-grounded retrieval.
+- Persistent conversations and document lifecycle management.
+- Multi-provider LLM support (OpenAI, Anthropic, Google).
 
-- Python
-- FastAPI
-- Uvicorn
-- PyPDF2
-- Langchain libraries
+### Platform Capabilities
 
-## Using Docker
+- Asynchronous processing with Celery workers.
+- PostgreSQL for transactional data and Redis for cache/broker roles.
+- ChromaDB vector store for semantic retrieval.
+- Docker Compose orchestration for local and production-like environments.
+- Health endpoints, metrics support, and observability integrations.
 
-You can also run the project using Docker. Refer to the [Docker documentation](README.Docker.md) for more information.
+## Architecture
 
-## Installation
+### High-Level Components
 
-1. Clone the repository:
+- Frontend: Next.js 14 + TypeScript UI for authentication, document workflows, and chat interactions.
+- Backend: FastAPI services for auth, document processing, chat orchestration, and health operations.
+- Data services: PostgreSQL (system-of-record), Redis (cache and queue), ChromaDB (vector index).
+- Operations: optional monitoring and tracing stacks through Compose profiles or dedicated compose files.
 
-   ```sh
-   git clone https://github.com/sthsuyash/chat-pdf.git
-   cd chat-pdf
-   ```
+## Quick Start
 
-2. Create a virtual environment:
+### Prerequisites
 
-   - For Windows:
+- Docker Desktop
+- Python 3.13+
+- Node.js 18+
+- pnpm
+- OpenAI API key (or other configured provider key)
 
-   ```powershell
-   python -m venv venv
-   .\venv\Scripts\Activate
-   ```
+### Recommended Local Development Mode
 
-   - For MacOS/Linux:
+Run the application on host, with infrastructure in Docker.
 
-   ```sh
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+```bash
+# 1) Configure environment
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
 
-3. Install the required dependencies:
+# 2) Start infrastructure services
+docker compose up -d
 
-   ```sh
-   pip install -r requirements.txt
-   ```
+# 3) Start backend
+cd backend
+uv sync
+uv run alembic upgrade head
+uv run uvicorn main:app --reload
 
-4. Rename the `.env.example` file to `.env` and update the environment variables.
-
-## Usage
-
-1. Start the FastAPI server:
-
-   ```sh
-   uvicorn main:app --reload
-   ```
-
-2. The API will be available at `http://127.0.0.1:8000`.
-
-## API Endpoints
-
-### Root Endpoint
-
-- **GET /**
-
-  - Description: Root endpoint to test the API.
-  - Response:
-
-    ```json
-    {
-      "status": "success",
-      "data": {
-        "message": "Welcome to the Question Answering RAG system!"
-      }
-    }
-    ```
-
-### Upload PDF
-
-- **POST /upload_pdf**
-
-  - Description: Upload a PDF file and process it into chunks for the vector store.
-  - Request:
-    - File: A PDF file.
-  - Response:
-
-    - Success:
-
-      ```json
-      {
-        "status": "success",
-        "data": {
-          "message": "File uploaded successfully."
-        }
-      }
-      ```
-
-    - Error:
-
-      ```json
-      {
-        "status": "error",
-        "data": {
-          "message": "Error processing file: <error_message>"
-        }
-      }
-      ```
-
-### Ask Question
-
-- **POST /ask_question**
-
-  - Description: Ask a question based on the uploaded documents.
-  - Request:
-
-    - JSON body:
-
-      ```json
-      {
-        "question": "Your question here"
-      }
-      ```
-
-  - Response:
-
-    - Success:
-
-      ```json
-      {
-        "status": "success",
-        "data": {
-          "answer": "The answer to your question."
-        }
-      }
-      ```
-
-    - Error:
-
-      ```json
-      {
-        "status": "error",
-        "data": {
-          "message": "Error answering question: <error_message>"
-        }
-      }
-      ```
-
-## Postman Collection
-
-You can import the Postman collection to test the API endpoints. The collection is available [here](RAG%20System.postman_collection.json).
-
-## Project Structure
-
-```readme
-.
-├── pdf/                # Directory to store uploaded PDF files
-├── main.py             # Main FastAPI application
-├── routes/             # Directory containing API route definitions
-│   ├── __init__.py
-│   ├── ai.py           # Route for AI operations
-│   ├── base.py         # Base route for the API
-│   ├── chat.py         # Route for chat operations using pdf
-├── services/           # Directory containing service classes
-│   ├── __init__.py
-│   ├── ai_service.py   # Service class for AI operations
-│   ├── pdf_service.py  # Service class for PDF operations
-├── utils.py            # Utility functions for the application
-├── requirements.txt    # Project dependencies
-├── .env.example        # Example environment variables
-├── .env                # Environment variables
-├── Dockerfile          # Dockerfile for building the project
-├── docker-compose.yml  # Docker Compose configuration
-├── .gitignore          # Files and directories to be ignored by Git
-├── .dockerignore       # Files and directories to be ignored by Docker
-├── README.Docker.md    # Documentation for running the project in Docker
-└── README.md           # Project documentation
+# 4) Start frontend (new terminal)
+cd ../frontend
+pnpm install
+pnpm run dev
 ```
+
+### Service Endpoints
+
+- Frontend: <http://localhost:3000>
+- Backend API: <http://localhost:8000>
+- OpenAPI/Swagger: <http://localhost:8000/docs>
+
+## Docker Compose Topology
+
+### Compose Files
+
+- `docker-compose.yml`: core infrastructure with optional observability profiles.
+- `docker/compose/docker-compose.fullstack.yml`: backend + frontend + infrastructure.
+- `docker/compose/docker-compose.monitoring.yml`: Prometheus, Grafana, and exporters.
+- `docker/compose/docker-compose.tracing.yml`: Jaeger tracing stack.
+
+### Common Commands
+
+```bash
+# Infrastructure only
+docker compose up -d
+
+# Full stack in containers
+docker compose -f docker/compose/docker-compose.fullstack.yml up --build
+
+# Monitoring stack
+docker compose -f docker/compose/docker-compose.monitoring.yml up -d
+
+# Tracing stack
+docker compose -f docker/compose/docker-compose.tracing.yml up -d
+```
+
+## Security and Compliance Controls
+
+- Authentication and session controls:
+  - JWT access/refresh model with rotation.
+  - httpOnly cookies and CSRF token validation.
+  - Rate limiting and hardened CORS/security-header defaults.
+- Data protection controls:
+  - API key encryption at rest via field-level encryption.
+  - Input validation and ORM-based query safety patterns.
+
+Reference: [Security Encryption Guide](./docs/security/ENCRYPTION.md).
+
+## Operations
+
+### Health and Readiness
+
+- `GET /api/v1/health/detailed`
+- `GET /api/v1/health/ready`
+- `GET /api/v1/health/live`
+
+### Testing
+
+```bash
+# Backend tests
+cd backend
+uv run pytest -v --cov=app
+
+# Frontend tests
+cd ../frontend
+pnpm test
+```
+
+## Deployment
+
+For deployment patterns, scaling, cloud targets, and production checklists, see [Deployment Guide](./docs/guides/DEPLOYMENT.md).
+
+## Documentation Index
+
+- [Documentation Hub](./docs/README.md)
+- [Setup Guide](./docs/guides/SETUP.md)
+- [Backend Setup](./docs/backend/SETUP.md)
+- [Deployment Guide](./docs/guides/DEPLOYMENT.md)
+- [Monitoring Guide](./docs/guides/MONITORING.md)
+- [Tracing Guide](./docs/guides/TRACING.md)
+- [Testing Guide](./docs/guides/TESTING.md)
+- [Contributing Guide](./docs/guides/CONTRIBUTING.md)
+- [Documentation Governance](./docs/DOCUMENTATION_GOVERNANCE.md)
+- [Backend README](./backend/README.md)
+- [Frontend README](./frontend/README.md)
+- [Landing README](./landing/README.md)
+- [Kubernetes README](./k8s/README.md)
+
+## Contribution
+
+See [Contributing Guide](./docs/guides/CONTRIBUTING.md) for branching, testing, and pull request standards.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Licensed under the MIT License. See [LICENSE](LICENSE).
