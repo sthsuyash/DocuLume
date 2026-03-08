@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { DocSearchModal, useDocSearchKeyboardEvents } from '@docsearch/react'
 import { createPortal } from 'react-dom'
-import { useState, useCallback } from 'react'
 import '@docsearch/css'
 
 interface DocSearchProps {
@@ -15,6 +14,8 @@ interface DocSearchProps {
 export function DocSearch({ apiKey, appId, indexName }: DocSearchProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [initialQuery, setInitialQuery] = useState<string>('')
+  const [initialScrollY, setInitialScrollY] = useState<number>(0)
+  const [isAskAiActive, setIsAskAiActive] = useState<boolean>(false)
 
   const onOpen = useCallback(() => {
     setIsOpen(true)
@@ -32,12 +33,24 @@ export function DocSearch({ apiKey, appId, indexName }: DocSearchProps) {
     [setIsOpen, setInitialQuery]
   )
 
+  const onAskAiToggle = useCallback((value: boolean) => {
+    setIsAskAiActive(value)
+  }, [])
+
   useDocSearchKeyboardEvents({
     isOpen,
     onOpen,
     onClose,
     onInput,
+    isAskAiActive,
+    onAskAiToggle,
   })
+
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      setInitialScrollY(window.scrollY ?? 0)
+    }
+  }, [isOpen])
 
   return (
     <>
@@ -70,14 +83,16 @@ export function DocSearch({ apiKey, appId, indexName }: DocSearchProps) {
         </span>
       </button>
 
-      {isOpen &&
+      {isOpen && typeof document !== 'undefined' &&
         createPortal(
           <DocSearchModal
             apiKey={apiKey}
             appId={appId}
             indexName={indexName}
             onClose={onClose}
-            initialScrollY={window.scrollY}
+            initialScrollY={initialScrollY}
+            isAskAiActive={isAskAiActive}
+            onAskAiToggle={onAskAiToggle}
             initialQuery={initialQuery}
             placeholder="Search documentation..."
             translations={{
