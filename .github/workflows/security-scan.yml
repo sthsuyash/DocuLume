@@ -1,0 +1,99 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 0 * * 2'  # Weekly on Tuesday
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  backend-security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        pip install bandit safety semgrep
+
+    - name: Run Bandit
+      working-directory: ./backend
+      run: bandit -r app/ -f json -o bandit-report.json
+
+    - name: Run Safety
+      working-directory: ./backend
+      run: safety check --json --output safety-report.json || true
+
+    - name: Run Semgrep
+      working-directory: ./backend
+      run: |
+        semgrep --config=auto app/ --json -o semgrep-report.json || true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-security-reports
+        path: |
+          backend/bandit-report.json
+          backend/safety-report.json
+          backend/semgrep-report.json
+
+  frontend-security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install pnpm
+      run: npm install -g pnpm
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: pnpm install
+
+    - name: Audit dependencies
+      working-directory: ./frontend
+      run: pnpm audit --json > npm-audit.json || true
+
+    - name: Upload audit report
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-security-reports
+        path: frontend/npm-audit.json
+
+  docker-security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Trivy scanner on backend
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: './backend'
+        format: 'sarif'
+        output: 'trivy-backend.sarif'
+
+    - name: Run Trivy scanner on frontend
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: './frontend'
+        format: 'sarif'
+        output: 'trivy-frontend.sarif'
+
+    - name: Upload Trivy results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: '.'

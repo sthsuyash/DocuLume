@@ -1,0 +1,244 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black isort
+
+      - name: Run Ruff (fast linter)
+        run: ruff check app/ --output-format=github
+
+      - name: Check code formatting with Black
+        run: black --check app/
+
+      - name: Check import sorting with isort
+        run: isort --check-only app/
+
+  type-check:
+    name: Type Checking
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mypy
+
+      - name: Type check with mypy
+        run: mypy app/
+        # CRITICAL: No || true - type checking must pass
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit[toml] safety
+
+      - name: Security scan with Bandit
+        run: |
+          bandit -r app/ -ll -c pyproject.toml --format json --output bandit-report.json
+          bandit -r app/ -ll -c pyproject.toml
+        # CRITICAL: No || true - security issues must be addressed
+
+      - name: Upload Bandit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: backend/bandit-report.json
+
+      - name: Dependency vulnerability check with Safety
+        run: safety check --json --output safety-report.json || safety check
+        # CRITICAL: No || true - vulnerable dependencies must be fixed
+
+      - name: Upload Safety results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-vulnerability-report
+          path: backend/safety-report.json
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: raguser
+          POSTGRES_PASSWORD: ragpass
+          POSTGRES_DB: ragdb_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Generate encryption key for tests
+        run: |
+          python -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())" >> $GITHUB_ENV
+
+      - name: Run tests with coverage
+        env:
+          DATABASE_URL: postgresql+asyncpg://raguser:ragpass@localhost:5432/ragdb_test
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET_KEY: test-secret-key-for-ci
+        run: |
+          pytest -v -n auto \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term \
+            --cov-report=html \
+            --cov-fail-under=90
+        # CRITICAL: 90% coverage required
+
+      - name: Upload coverage reports
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-html
+          path: backend/htmlcov/
+
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, security, test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          tags: doculume-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: doculume-backend:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+        # CRITICAL: Docker image vulnerabilities must be addressed
+
+      - name: Upload Trivy results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
