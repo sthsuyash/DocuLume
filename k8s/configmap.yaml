@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: doculume-config
+  namespace: doculume
+data:
+  APP_NAME: "Chat PDF"
+  APP_VERSION: "2.0.0"
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  API_V1_PREFIX: "/api/v1"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "40"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+  RATE_LIMIT_PER_MINUTE: "60"
+  CORS_ORIGINS: '["https://doculume.example.com"]'

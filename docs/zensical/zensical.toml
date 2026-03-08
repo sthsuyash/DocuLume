@@ -1,0 +1,14 @@
+[project]
+site_name = "DocuLume Docs"
+# Set your site_url for correct absolute links (edit before publishing)
+site_url = "https://<your-github-username>.github.io/<your-repo>"
+
+[build]
+# output_dir default is `site`; override here if you prefer another folder
+output_dir = "site"
+
+# Use the repository root `docs/` folder as the docs source
+docs_dir = "../../docs"
+
+[markdown]
+extensions = ["tables", "attr_list"]
