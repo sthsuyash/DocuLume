@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Enterprise-oriented RAG platform for document intelligence with authenticated ingestion, semantic retrieval, and conversational Q&A"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
