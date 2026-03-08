@@ -1,0 +1,75 @@
+# Docker Compose for Full Stack including Admin Frontend
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.admin.yml up
+
+version: '3.8'
+
+services:
+  # Admin Frontend
+  admin-frontend:
+    build:
+      context: ./admin-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api/v1
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - doculume-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=Host(`admin.doculume.com`)"
+      - "traefik.http.services.admin.loadbalancer.server.port=3001"
+
+  # User Frontend (if not already in docker-compose.yml)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api/v1
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - doculume-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`app.doculume.com`)"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+
+  # Backend API (if not already in docker-compose.yml)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://raguser:ragpass@postgres:5432/ragdb
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - ENVIRONMENT=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - doculume-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.doculume.com`)"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+
+networks:
+  doculume-network:
+    driver: bridge
