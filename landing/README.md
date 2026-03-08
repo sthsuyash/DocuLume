@@ -80,6 +80,7 @@ NEXT_PUBLIC_SECURITY_EMAIL=security@your-domain.com
 - [Root README](../README.md)
 - [Documentation Hub](../docs/README.md)
 - [Deployment Guide](../docs/guides/DEPLOYMENT.md)
+- [Zensical search setup](../docs/guides/ZENSICAL_SETUP.md)
 
 ## License
 
