@@ -1,6 +1,7 @@
 {
   "name": "doculume-frontend",
   "version": "1.0.0",
+  "description": "DocuLume customer-facing Next.js frontend for document ingestion and conversational Q&A",
   "private": true,
   "scripts": {
     "dev": "next dev -p 4001",

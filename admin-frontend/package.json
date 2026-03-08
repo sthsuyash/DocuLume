@@ -1,6 +1,7 @@
 {
   "name": "@doculume/admin",
   "version": "1.0.0",
+  "description": "DocuLume admin dashboard for managing users, documents, and platform configuration",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
